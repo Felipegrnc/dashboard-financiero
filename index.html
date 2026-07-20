@@ -1,0 +1,2367 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Personal Finance Terminal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="text/javascript" src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;700;800&display=swap');
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background-color: #030408;
+            color: #f1f5f9;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        ::-webkit-scrollbar { width: 3px; height: 3px; }
+        ::-webkit-scrollbar-track { background: #020617; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; }
+        .loading-pulse { animation: pulse 1.5s ease-in-out infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        .tab-active { color: #00fbfb; border-bottom: 2px solid #00fbfb; }
+        .tab-inactive { color: #64748b; border-bottom: 2px solid transparent; }
+        .tab-inactive:hover { color: #94a3b8; }
+        .edit-cell {
+            background: #0a0d14;
+            border: 1px solid #1e293b;
+            color: #e2e8f0;
+            font-size: 10px;
+            padding: 4px 6px;
+            font-family: 'JetBrains Mono', monospace;
+            outline: none;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .edit-cell:focus { border-color: #00fbfb; background: #0f172a; }
+        .edit-cell.modified { border-color: #fbbf24; background: #1c1917; }
+        .edit-cell.saved { border-color: #00ff66; animation: savedFlash 0.8s ease-out; }
+        @keyframes savedFlash { 0% { background: rgba(0,255,102,0.2); } 100% { background: #0a0d14; } }
+        .editor-filter-btn { transition: all 0.15s; }
+        .editor-filter-btn:hover { color: #e2e8f0; }
+        /* Force date inputs to be compact */
+        input[type="date"].edit-cell-date {
+            width: 100%;
+            max-width: 67px;
+            font-size: 8px;
+            padding: 2px 2px;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        input[type="date"].edit-cell-date::-webkit-calendar-picker-indicator {
+            width: 8px;
+            height: 8px;
+            padding: 0;
+            margin: 0;
+            opacity: 0.5;
+        }
+        .row-even { background: #000000; }
+        .row-odd { background: #050810; }
+        .row-type-gasto { border-left: 2px solid #ff3366; }
+        .row-type-ingreso { border-left: 2px solid #00ff66; }
+        .row-type-ahorro { border-left: 2px solid #2196f3; }
+        .row-type-consignacion { border-left: 2px solid #00fbfb; }
+        .editor-table th { position: sticky; top: 0; z-index: 10; background: #020617; }
+        .chart-legend {
+            position: absolute; top: 4px; left: 8px; z-index: 20;
+            font-size: 8px; color: #94a3b8; pointer-events: none;
+        }
+        .chart-area { position: relative; }
+        .pill { padding: 2px 6px; font-size: 7px; border-radius: 2px; cursor: pointer; font-weight: bold; transition: all 0.15s; }
+        .pill-active { opacity: 1; }
+        .pill-inactive { opacity: 0.35; }
+        .interval-btn { padding: 3px 8px; font-size: 8px; font-weight: bold; border-radius: 2px; cursor: pointer; transition: all 0.15s; }
+        .interval-active { color: #00fbfb; background: #0f172a; border: 1px solid #00fbfb; }
+        .interval-inactive { color: #64748b; border: 1px solid transparent; }
+        .interval-inactive:hover { color: #e2e8f0; }
+        /* Hide TradingView attribution logo */
+        #tv-attr-logo, [id^="tv-attr"] { display: none !important; }
+        a[href*="tradingview.com"] { display: none !important; }
+        /* Heatmap Grid - Full Year GitHub-style */
+        .heatmap-grid { display: grid; gap: 2px; }
+        .heatmap-cell { border-radius: 2px; transition: all 0.2s; cursor: crosshair; }
+        .heatmap-cell:hover { transform: scale(1.6); z-index: 10; box-shadow: 0 0 8px currentColor; }
+        .heatmap-label { font-size: 6.5px; color: #475569; display: flex; align-items: center; justify-content: center; }
+        .heatmap-month-label { font-size: 7px; color: #64748b; font-weight: bold; text-align: center; }
+        .heatmap-today { border: 1px solid #00fbfb; }
+        /* Donut Chart */
+        .donut-container { position: relative; display: flex; align-items: center; justify-content: center; }
+        .donut-center { position: absolute; text-align: center; }
+        .donut-legend-item { display: flex; align-items: center; gap: 4px; font-size: 7.5px; margin-bottom: 3px; }
+        .donut-legend-dot { width: 6px; height: 6px; border-radius: 1px; flex-shrink: 0; }
+        /* Monthly Comparison Bars */
+        .month-bar { transition: all 0.3s ease; cursor: pointer; position: relative; }
+        .month-bar:hover { filter: brightness(1.4); }
+        .month-bar-label { font-size: 7px; text-align: center; color: #64748b; margin-top: 2px; }
+        /* Runway Projection */
+        .runway-meter { height: 4px; border-radius: 2px; overflow: hidden; position: relative; }
+        .runway-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+        @keyframes scanline { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+        .scanline-effect { position: absolute; top: 0; left: 0; width: 50%; height: 100%; background: linear-gradient(90deg, transparent, rgba(0,251,251,0.3), transparent); animation: scanline 2s linear infinite; }
+        /* Glow effects */
+        .glow-cyan { text-shadow: 0 0 6px rgba(0,251,251,0.6); }
+        /* Custom checkbox - terminal style */
+        .terminal-checkbox {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            border: 1px solid #334155;
+            background: #0a0d14;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.15s;
+        }
+        .terminal-checkbox:hover {
+            border-color: #ff3366;
+            box-shadow: 0 0 4px rgba(255, 51, 102, 0.3);
+        }
+        .terminal-checkbox:checked {
+            border-color: #ff3366;
+            background: #ff3366;
+        }
+        .glow-green { text-shadow: 0 0 6px rgba(0,255,102,0.6); }
+        .glow-red { text-shadow: 0 0 6px rgba(255,51,102,0.6); }
+    </style>
+</head>
+<body class="flex justify-center bg-[#07090e] min-h-screen">
+
+    <!-- MAIN CONTAINER -->
+    <div class="w-full max-w-[520px] bg-[#000000] min-h-screen border-x border-slate-900 shadow-2xl flex flex-col relative">
+        
+        <!-- HEADER -->
+        <header class="border-b border-slate-900 bg-[#02050a] p-2 space-y-2">
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-[9px] text-[#00fbfb]">COGNITIVE_BUDGET_GRID // v4.0 // SUPABASE_LINKED</p>
+                </div>
+                <div class="flex gap-1">
+                    <span class="bg-[#00ff66]/15 text-[#00ff66] px-1.5 py-0.5 text-[7.5px] font-bold uppercase" id="db-status">CONNECTING</span>
+                    <button onclick="refreshData()" class="border border-[#00fbfb]/40 hover:bg-[#00fbfb]/10 text-[#00fbfb] px-1.5 py-0.5 text-[8px] transition duration-200">
+                        SYNC
+                    </button>
+                </div>
+            </div>
+            <div class="grid grid-cols-3 gap-1 border-t border-slate-900 pt-2 text-[10px]">
+                <div class="border-l border-slate-800 pl-1.5">
+                    <span class="text-slate-500 block text-[7px] font-bold">TOTAL_EXPENSES</span>
+                    <span id="header-total-gastos" class="font-black text-[#ff3366] loading-pulse">---</span>
+                </div>
+                <div class="border-l border-slate-800 pl-1.5">
+                    <span class="text-slate-500 block text-[7px] font-bold">TOTAL_INCOME</span>
+                    <span id="header-total-ingresos" class="font-black text-[#00ff66] loading-pulse">---</span>
+                </div>
+                <div class="border-l border-slate-800 pl-1.5 pr-1">
+                    <span class="text-slate-500 block text-[7px] font-bold">NET_BALANCE</span>
+                    <span id="header-balance" class="font-black text-white loading-pulse">---</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- TABS -->
+        <nav class="flex border-b border-slate-900 bg-[#020617]">
+            <button onclick="switchTab('dashboard')" id="tab-dashboard" class="flex-1 py-2 text-[10px] font-bold tracking-wider tab-active transition-all">DASHBOARD</button>
+            <button onclick="switchTab('editor')" id="tab-editor" class="flex-1 py-2 text-[10px] font-bold tracking-wider tab-inactive transition-all">EDITOR</button>
+        </nav>
+
+        <!-- ========== TAB: DASHBOARD ========== -->
+        <div id="view-dashboard" class="flex-grow overflow-y-auto p-2 space-y-2">
+
+            <!-- INTERVAL SELECTOR (shared across charts) -->
+            <div class="flex items-center justify-between bg-[#020617] border border-slate-900 px-2 py-1">
+                <span class="text-[8px] text-slate-500 font-bold">INTERVAL:</span>
+                <div class="flex gap-1" id="interval-buttons">
+                    <button onclick="setChartInterval('1m')" class="interval-btn interval-inactive" data-interval="1m">1M</button>
+                    <button onclick="setChartInterval('3m')" class="interval-btn interval-active" data-interval="3m">3M</button>
+                    <button onclick="setChartInterval('6m')" class="interval-btn interval-inactive" data-interval="6m">6M</button>
+                    <button onclick="setChartInterval('1y')" class="interval-btn interval-inactive" data-interval="1y">1Y</button>
+                    <button onclick="setChartInterval('all')" class="interval-btn interval-inactive" data-interval="all">ALL</button>
+                </div>
+            </div>
+
+            <!-- CHART 1: DAILY BALANCE (Candlestick + Volume + MA20) -->
+            <section class="border border-slate-900 bg-[#000000]">
+                <div class="flex justify-between items-center bg-[#05070c] px-2 py-1 text-[9px] border-b border-slate-900">
+                    <span class="font-bold text-[#00fbfb] tracking-wide">DAILY_BALANCE</span>
+                    <span class="text-[7px] text-slate-500">CANDLESTICK + MA(20) + VOL</span>
+                </div>
+                <div class="chart-area">
+                    <div class="chart-legend" id="legend-chart1">
+                        <span class="text-slate-500">A: --- M: --- m: --- C: --- Vol: --- MA: ---</span>
+                    </div>
+                    <div id="chart1-container" style="height: 250px; width: 100%;"></div>
+                </div>
+            </section>
+
+            <!-- CHART 2: CASHFLOW STREAM (Baseline Series) -->
+            <section class="border border-slate-900 bg-[#000000]">
+                <div class="flex justify-between items-center bg-[#05070c] px-2 py-1 text-[9px] border-b border-slate-900">
+                    <span class="font-bold text-[#00fbfb] tracking-wide">CASHFLOW_STREAM</span>
+                    <div class="flex gap-1" id="cashflow-pills">
+                        <span class="pill pill-active" style="color:#4caf50;border:1px solid #4caf50" onclick="toggleSeries('income')">INC</span>
+                        <span class="pill pill-active" style="color:#ef5350;border:1px solid #ef5350" onclick="toggleSeries('expense')">EXP</span>
+                        <span class="pill pill-active" style="color:#2196f3;border:1px solid #2196f3" onclick="toggleSeries('savings')">SAV</span>
+                        <span class="pill pill-active" style="color:#5e72e4;border:1px solid #5e72e4" onclick="toggleSeries('balance')">BAL</span>
+                        <span class="pill pill-active" style="color:#00ff66;border:1px solid #00ff6680" onclick="toggleSeries('netflow')">NET</span>
+                    </div>
+                </div>
+                <div class="chart-area">
+                    <div class="chart-legend" id="legend-chart2">
+                        <span class="text-slate-500">Income: --- Expense: --- Savings: --- Balance: ---</span>
+                    </div>
+                    <div id="chart2-container" style="height: 200px; width: 100%;"></div>
+                </div>
+            </section>
+
+            <!-- CHART 3: DEBT & PAYMENTS (Area Series) -->
+            <section class="border border-slate-900 bg-[#000000]">
+                <div class="flex justify-between items-center bg-[#05070c] px-2 py-1 text-[9px] border-b border-slate-900">
+                    <span class="font-bold text-[#00fbfb] tracking-wide">DEBT_&_PAYMENTS</span>
+                    <span class="text-[7px] text-slate-500">CREDIT ACCRUAL</span>
+                </div>
+                <div class="chart-area">
+                    <div class="chart-legend" id="legend-chart3">
+                        <span class="text-slate-500">Debt: --- Payment: ---</span>
+                    </div>
+                    <div id="chart3-container" style="height: 180px; width: 100%;"></div>
+                </div>
+            </section>
+
+            <!-- CHART 6: SPEND HEATMAP FULL WIDTH (FULL YEAR) -->
+            <section class="border border-slate-900 bg-[#000000]">
+                <div class="flex justify-between items-center bg-[#05070c] px-2 py-1 text-[9px] border-b border-slate-900">
+                    <span class="font-bold text-[#00fbfb] tracking-wide">SPEND_HEATMAP</span>
+                    <span class="text-[7px] text-slate-500" id="heatmap-year-label">2026</span>
+                </div>
+                <div id="heatmap-container" class="p-2 bg-[#030712]" style="min-height: 100px; overflow-x: auto;">
+                    <div class="text-slate-500 text-[8px] loading-pulse">Loading...</div>
+                </div>
+            </section>
+
+            <!-- CHART 5 + 7: MONTHLY COMPARE & CATEGORY RING SIDE BY SIDE -->
+            <div class="grid grid-cols-2 gap-1">
+                <section class="border border-slate-900 bg-[#000000]">
+                    <div class="flex justify-between items-center bg-[#05070c] px-1.5 py-1 text-[8px] border-b border-slate-900">
+                        <span class="font-bold text-[#00fbfb] tracking-wide">MONTHLY_COMPARE</span>
+                    </div>
+                    <div id="monthly-bars-container" class="p-1.5 bg-[#030712]" style="min-height: 80px;">
+                        <div class="text-slate-500 text-[8px] loading-pulse">Loading...</div>
+                    </div>
+                </section>
+
+                <section class="border border-slate-900 bg-[#000000]">
+                    <div class="flex justify-between items-center bg-[#05070c] px-1.5 py-1 text-[8px] border-b border-slate-900">
+                        <span class="font-bold text-[#00fbfb] tracking-wide">CATEGORY_RING</span>
+                    </div>
+                    <div id="donut-container" class="p-1.5 bg-[#030712] flex items-center justify-center gap-2" style="min-height: 130px;">
+                        <div class="text-slate-500 text-[8px] loading-pulse">Loading...</div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- CHART 4: RUNWAY PROJECTION -->
+            <section class="border border-slate-900 bg-[#000000]">
+                <div class="flex justify-between items-center bg-[#05070c] px-2 py-1 text-[9px] border-b border-slate-900">
+                    <span class="font-bold text-[#00fbfb] tracking-wide">RUNWAY_PROJECTION</span>
+                    <span class="text-[7px] text-slate-500">BURN FORECAST</span>
+                </div>
+                <div class="p-2 bg-[#030712] space-y-2">
+                    <div class="flex justify-between text-[8px]">
+                        <div>
+                            <span class="text-slate-500 block text-[7px]">DAYS_REMAINING</span>
+                            <span id="runway-days" class="font-black text-[#00fbfb] text-[14px] glow-cyan">---</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-slate-500 block text-[7px]">AVG_DAILY_BURN</span>
+                            <span id="runway-burn" class="font-bold text-[#ff3366]">---</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-slate-500 block text-[7px]">PROJECTED_ZERO</span>
+                            <span id="runway-date" class="font-bold text-[#fbbf24]">---</span>
+                        </div>
+                    </div>
+                    <div class="runway-meter bg-slate-800">
+                        <div id="runway-bar" class="runway-fill bg-gradient-to-r from-[#00ff66] via-[#fbbf24] to-[#ff3366]" style="width:0%"></div>
+                        <div class="scanline-effect"></div>
+                    </div>
+                    <div class="chart-area">
+                        <div id="chart-runway-container" style="height: 120px; width: 100%;"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TRANSACTION TABLE -->
+            <section class="border border-slate-900 bg-black">
+                <div class="bg-[#05070c] px-2 py-1 text-[9px] border-b border-slate-900 flex justify-between items-center">
+                    <span class="font-bold text-white tracking-wide">TRANSACTION_LEDGER</span>
+                    <span id="tx-count-badge" class="text-[7px] text-slate-500">0 records</span>
+                </div>
+                <div class="overflow-x-auto max-h-[220px] overflow-y-auto">
+                    <table class="w-full text-[8px] text-left">
+                        <thead class="bg-[#020617] text-slate-500 uppercase border-b border-slate-900 sticky top-0 z-10">
+                            <tr class="font-bold">
+                                <th class="p-1.5 pl-2">DATE</th>
+                                <th class="p-1.5">TYPE</th>
+                                <th class="p-1.5">CONCEPT</th>
+                                <th class="p-1.5">RECEIVER</th>
+                                <th class="p-1.5 pr-2 text-right">AMOUNT</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactions-tbody" class="divide-y divide-slate-950"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- CATEGORY BREAKDOWN -->
+            <section class="border border-slate-900 bg-black">
+                <div class="bg-[#05070c] px-2 py-1 text-[9px] border-b border-slate-900">
+                    <span class="font-bold text-[#00fbfb] tracking-wide">CATEGORY_BREAKDOWN</span>
+                </div>
+                <div id="category-breakdown" class="p-2 bg-[#030712] space-y-1.5 text-[8px]">
+                    <div class="text-slate-500 loading-pulse">Loading...</div>
+                </div>
+            </section>
+
+            <!-- TELEMETRY -->
+            <section class="border border-slate-900 bg-black">
+                <div class="bg-[#05070c] px-2 py-1 text-[9px] border-b border-slate-900">
+                    <span class="font-bold text-[#00fbfb] tracking-wide">TELEMETRY_STREAM</span>
+                </div>
+                <div id="terminal-logs" class="p-1.5 bg-[#02040a] h-16 overflow-y-auto text-[7.5px] space-y-0.5 text-[#00fbfb]/80 border-t border-slate-950 font-mono"></div>
+            </section>
+
+            <!-- SIGNAL MATRIX -->
+            <section class="border border-slate-900 bg-black">
+                <div class="bg-[#05070c] px-2 py-1 text-[9px] border-b border-slate-900">
+                    <span class="font-bold text-white tracking-wide">SIGNAL_MATRIX</span>
+                </div>
+                <div class="p-2 bg-[#030712] space-y-2 text-[8px]">
+                    <div>
+                        <div class="flex justify-between mb-0.5">
+                            <span class="text-slate-500">BURN_RATE</span>
+                            <span id="signal-burn" class="text-[#fbbf24] font-bold">---</span>
+                        </div>
+                        <div class="w-full bg-slate-800 h-1"><div id="signal-burn-bar" class="bg-[#fbbf24] h-1" style="width:0%"></div></div>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-500">SAVINGS_RATE</span>
+                        <span id="signal-savings-rate" class="text-[#2196f3] font-bold">---</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-500">DEBIT_VS_CREDIT</span>
+                        <span id="signal-ratio" class="text-[#00fbfb] font-bold">---</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-500">ACTIVE_DEBT</span>
+                        <span id="signal-debt" class="text-[#ff3366] font-bold">---</span>
+                    </div>
+                    <div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-slate-500">WEEK_TREND</span>
+                            <span id="signal-trend" class="font-bold">---</span>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-500">TOP_CATEGORY_ALERT</span>
+                        <span id="signal-top-cat" class="text-[#fbbf24] font-bold text-[7px]">---</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-500">DATA_FRESHNESS</span>
+                        <span id="signal-freshness" class="text-slate-500 font-bold">---</span>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- ========== TAB: EDITOR ========== -->
+        <div id="view-editor" class="flex-grow overflow-hidden flex flex-col hidden">
+            <!-- Top bar: title + actions -->
+            <div class="flex items-center justify-between px-2 py-1.5 bg-[#020617] border-b border-slate-900">
+                <div class="flex items-center gap-2">
+                    <span class="text-[9px] font-bold text-[#00fbfb]">LEDGER_EDITOR</span>
+                    <span id="editor-count" class="text-[7px] text-slate-500">0 rows</span>
+                </div>
+                <div class="flex gap-1">
+                    <button onclick="openNewRowModal()" class="border border-[#00ff66]/40 hover:bg-[#00ff66]/10 text-[#00ff66] px-2 py-0.5 text-[7px] font-bold transition">+ NEW</button>
+                    <button onclick="toggleSelectMode()" id="btn-select-mode" class="border border-slate-700 hover:bg-slate-800 text-slate-400 px-2 py-0.5 text-[7px] font-bold transition">SELECT</button>
+                    <button onclick="deleteSelected()" id="btn-delete-selected" class="border border-[#ff3366]/40 hover:bg-[#ff3366]/10 text-[#ff3366] px-2 py-0.5 text-[7px] font-bold transition hidden">
+                        DELETE (<span id="selected-count">0</span>)
+                    </button>
+                    <button onclick="saveAllChanges()" id="btn-save-all" class="border border-[#fbbf24]/40 hover:bg-[#fbbf24]/10 text-[#fbbf24] px-2 py-0.5 text-[7px] font-bold transition hidden">
+                        SAVE (<span id="pending-count">0</span>)
+                    </button>
+                    <button onclick="discardAllChanges()" id="btn-discard-all" class="border border-slate-600/40 hover:bg-slate-600/10 text-slate-400 px-2 py-0.5 text-[7px] font-bold transition hidden">
+                        DISCARD
+                    </button>
+                </div>
+            </div>
+            <!-- Filters bar -->
+            <div class="flex items-center gap-1 px-2 py-1 bg-[#030712] border-b border-slate-900 overflow-x-auto">
+                <button onclick="setEditorFilter('all')" data-filter="all" class="editor-filter-btn text-[7px] font-bold px-2 py-0.5 rounded-sm border border-[#00fbfb] text-[#00fbfb] bg-[#0f172a]">ALL</button>
+                <button onclick="setEditorFilter('gasto')" data-filter="gasto" class="editor-filter-btn text-[7px] font-bold px-2 py-0.5 rounded-sm border border-transparent text-slate-500">EXP</button>
+                <button onclick="setEditorFilter('ingreso')" data-filter="ingreso" class="editor-filter-btn text-[7px] font-bold px-2 py-0.5 rounded-sm border border-transparent text-slate-500">INC</button>
+                <button onclick="setEditorFilter('ahorro')" data-filter="ahorro" class="editor-filter-btn text-[7px] font-bold px-2 py-0.5 rounded-sm border border-transparent text-slate-500">SAV</button>
+                <button onclick="setEditorFilter('consignación')" data-filter="consignación" class="editor-filter-btn text-[7px] font-bold px-2 py-0.5 rounded-sm border border-transparent text-slate-500">PAY</button>
+                <span class="text-slate-700 text-[8px]">|</span>
+                <select id="editor-month-filter" onchange="renderEditorTable()" class="bg-black border border-slate-800 text-[7px] text-slate-300 px-1 py-0.5 rounded-sm outline-none">
+                    <option value="all">ALL MONTHS</option>
+                </select>
+            </div>
+            <div id="editor-status" class="px-2 py-1 text-[7px] bg-[#030712] border-b border-slate-900 text-slate-500 hidden"></div>
+            <!-- Table -->
+            <div class="flex-grow overflow-auto">
+                <table class="w-full text-[8px] editor-table border-collapse" style="table-layout:fixed">
+                    <thead>
+                        <tr class="text-slate-500 uppercase font-bold border-b border-slate-800">
+                            <th class="p-0.5 text-center w-[22px]" id="th-select" style="display:none">✓</th>
+                            <th class="p-0.5" style="width:67px">DATE</th>
+                            <th class="p-0.5" style="width:58px">TYPE</th>
+                            <th class="p-0.5" style="width:120px">CONCEPT</th>
+                            <th class="p-0.5" style="width:120px">SUBCAT</th>
+                            <th class="p-0.5 text-right" style="width:72px">AMOUNT</th>
+                            <th class="p-0.5" style="width:50px">METHOD</th>
+                        </tr>
+                    </thead>
+                    <tbody id="editor-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- FOOTER -->
+        <footer class="text-center text-[7.5px] text-slate-600 border-t border-slate-950 py-1.5 font-mono bg-[#020617]">
+            PERSONAL FINANCE GRID v4.0 // SUPABASE: ACTIVE // VERCEL_READY
+        </footer>
+    </div>
+
+    <!-- MODAL: NEW TRANSACTION -->
+    <div id="modal-overlay" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 hidden" onclick="closeModalOnBackdrop(event)">
+        <div class="w-full max-w-[400px] bg-[#0a0d14] border border-slate-800 shadow-2xl" id="modal-content">
+            <!-- Modal Header -->
+            <div class="flex justify-between items-center px-3 py-2 bg-[#020617] border-b border-slate-800">
+                <span class="text-[10px] font-bold text-[#00ff66] tracking-wide">NEW_TRANSACTION</span>
+                <button onclick="closeNewRowModal()" class="text-slate-500 hover:text-white text-[12px] font-bold px-1 transition">✕</button>
+            </div>
+            <!-- Modal Body -->
+            <div class="p-3 space-y-2.5">
+                <!-- Row 1: Date + Type -->
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-[7px] text-slate-500 mb-0.5 font-bold uppercase">Date</label>
+                        <input type="date" id="modal-date" class="edit-cell w-full">
+                    </div>
+                    <div>
+                        <label class="block text-[7px] text-slate-500 mb-0.5 font-bold uppercase">Type</label>
+                        <select id="modal-type" class="edit-cell w-full" onchange="onModalTypeChange()">
+                            <option value="gasto">expense</option>
+                            <option value="ingreso">income</option>
+                            <option value="ahorro">savings</option>
+                            <option value="consignación">payment</option>
+                        </select>
+                    </div>
+                </div>
+                <!-- Row 2: Concept (dropdown + custom) -->
+                <div>
+                    <label class="block text-[7px] text-slate-500 mb-0.5 font-bold uppercase">Concept</label>
+                    <select id="modal-concept-select" class="edit-cell w-full" onchange="onModalConceptSelect()">
+                        <option value="">-- select --</option>
+                        <option value="__custom__">✎ Other (type custom)...</option>
+                    </select>
+                    <input type="text" id="modal-concept" class="edit-cell w-full mt-1 hidden" placeholder="Type custom concept...">
+                </div>
+                <!-- Row 3: Subcategory (dropdown + custom) + Receiver (hidden by default) -->
+                <div class="grid grid-cols-1 gap-2">
+                    <div>
+                        <label class="block text-[7px] text-slate-500 mb-0.5 font-bold uppercase">Subcategory</label>
+                        <select id="modal-subcategory-select" class="edit-cell w-full" onchange="onModalSubcategorySelect()">
+                            <option value="">-- select --</option>
+                            <option value="__custom__">✎ Other (type custom)...</option>
+                        </select>
+                        <input type="text" id="modal-subcategory" class="edit-cell w-full mt-1 hidden" placeholder="Type custom subcategory...">
+                    </div>
+                </div>
+                <!-- Row 4: Amount (full width, bigger) + Payment Method -->
+                <div class="grid grid-cols-5 gap-2">
+                    <div class="col-span-3">
+                        <label class="block text-[7px] text-slate-500 mb-0.5 font-bold uppercase">Amount</label>
+                        <input type="text" inputmode="decimal" id="modal-amount" class="edit-cell w-full text-[12px] font-bold text-right" placeholder="0" oninput="formatAmountInput(this)">
+                    </div>
+                    <div class="col-span-2">
+                        <label class="block text-[7px] text-slate-500 mb-0.5 font-bold uppercase">Method</label>
+                        <select id="modal-method" class="edit-cell w-full">
+                            <option value="débito">debit</option>
+                            <option value="crédito">credit</option>
+                        </select>
+                    </div>
+                </div>
+                <!-- Row 5: Description + Receiver (collapsed) -->
+                <div>
+                    <label class="block text-[7px] text-slate-500 mb-0.5 font-bold uppercase">Description <span class="text-slate-700">(optional)</span></label>
+                    <input type="text" id="modal-description" class="edit-cell w-full" placeholder="Additional note...">
+                </div>
+                <div>
+                    <label class="block text-[7px] text-slate-500 mb-0.5 font-bold uppercase">Receiver <span class="text-slate-700">(optional)</span></label>
+                    <input type="text" id="modal-receiver" class="edit-cell w-full" placeholder="E.g. Store, Company XYZ">
+                </div>
+            </div>
+            <!-- Modal Footer -->
+            <div class="px-3 py-2 border-t border-slate-800 flex gap-2">
+                <button onclick="closeNewRowModal()" class="flex-1 py-1.5 text-[9px] font-bold text-slate-400 border border-slate-700 hover:bg-slate-800 transition rounded-sm">CANCEL</button>
+                <button onclick="submitNewRowModal()" id="modal-submit-btn" class="flex-1 py-1.5 text-[9px] font-bold text-black bg-[#00ff66]/80 hover:bg-[#00ff66] transition rounded-sm">COMMIT</button>
+            </div>
+            <!-- Status -->
+            <div id="modal-status" class="px-3 py-1 text-[7px] text-center hidden"></div>
+        </div>
+    </div>
+
+    <script>
+    // ================================================================
+    // CONFIG
+    // ================================================================
+    const SUPABASE_URL = 'https://sedenjlmyvhjaozbjzsd.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNlZGVuamxteXZoamFvemJqenNkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MDQzNTM3NSwiZXhwIjoyMDY2MDExMzc1fQ.VILob1uo_ARnucEyAe3iHDbQfpoRK11TBmx6jHJuxwU';
+    const INITIAL_BALANCE = 4298017.67;
+
+    let allTransactions = [];
+    let currentInterval = '3m';
+    let pendingChanges = new Map();
+
+    // Chart instances
+    let chart1 = null, chart2 = null, chart3 = null, chartRunway = null;
+    // Chart 1 series
+    let candleSeries = null, volumeSeries = null, maSeries = null;
+    // Chart 2 series
+    let incomeSeries = null, expenseSeries = null, savingsSeries = null, balanceSeries = null, netFlowSeries = null;
+    // Chart 3 series
+    let debtSeries = null, paymentSeries = null;
+    // Runway chart series
+    let runwayActualSeries = null, runwayProjectionSeries = null;
+    // Visibility state
+    let seriesVisibility = { income: true, expense: true, savings: true, balance: true, netflow: true };
+
+    // ================================================================
+    // SUPABASE API
+    // ================================================================
+    const supabaseHeaders = {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+    };
+
+    async function fetchTransactions() {
+        addLog('DB_QUERY: FETCHING transactions...');
+        try {
+            const res = await fetch(`${SUPABASE_URL}/rest/v1/transactions?select=*&order=date.asc`, { headers: supabaseHeaders });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            allTransactions = await res.json();
+            addLog(`DB_OK: ${allTransactions.length} records loaded`, 'success');
+            updateDBStatus(true);
+            return allTransactions;
+        } catch (err) {
+            addLog(`DB_ERROR: ${err.message}`, 'error');
+            updateDBStatus(false);
+            return [];
+        }
+    }
+
+    async function updateTransaction(id, updates) {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/transactions?id=eq.${id}`, {
+            method: 'PATCH', headers: supabaseHeaders, body: JSON.stringify(updates)
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        addLog(`DB_UPDATE: ${id.substring(0,8)}... SAVED`, 'success');
+        return data[0];
+    }
+
+    async function insertTransaction(record) {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/transactions`, {
+            method: 'POST', headers: supabaseHeaders, body: JSON.stringify(record)
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        addLog(`DB_INSERT: New record created`, 'success');
+        return data[0];
+    }
+
+    async function deleteTransaction(id) {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/transactions?id=eq.${id}`, {
+            method: 'DELETE', headers: supabaseHeaders
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        addLog(`DB_DELETE: ${id.substring(0,8)}... removed`, 'success');
+    }
+
+    // ================================================================
+    // DATA PROCESSING (matches backend logic from documentation)
+    // ================================================================
+
+    // Exclude: consignación type, "Abono a Tarjeta" concept, and rendimiento_ahorro (for chart 1 balance)
+    function filterOperational(transactions) {
+        return transactions.filter(t =>
+            t.type !== 'consignación' && t.type !== 'rendimiento_ahorro' && t.concept !== 'Abono a Tarjeta'
+        );
+    }
+
+    // For chart 2: includes rendimiento_ahorro (impacts savings accumulator only)
+    function filterCashflow(transactions) {
+        return transactions.filter(t =>
+            t.type !== 'consignación' && t.concept !== 'Abono a Tarjeta'
+        );
+    }
+
+    // Generate continuous date range
+    function generateDateRange(startDate, endDate) {
+        const dates = [];
+        const current = new Date(startDate);
+        const end = new Date(endDate);
+        while (current <= end) {
+            dates.push(current.toISOString().substring(0, 10));
+            current.setDate(current.getDate() + 1);
+        }
+        return dates;
+    }
+
+    // Get previous day string
+    function getPreviousDay(dateStr) {
+        const d = new Date(dateStr);
+        d.setDate(d.getDate() - 1);
+        return d.toISOString().substring(0, 10);
+    }
+
+    // CHART 1 DATA: Balance Waterfall (Candlestick)
+    function processWaterfallData() {
+        const operational = filterOperational(allTransactions);
+        if (operational.length === 0) return [];
+
+        const dates = operational.filter(t => t.date).map(t => t.date.substring(0, 10));
+        const minDate = dates.sort()[0];
+        const maxDate = dates[dates.length - 1];
+        const dateRange = generateDateRange(minDate, maxDate);
+
+        // Group by day
+        const dailyNet = {};
+        const dailyVolume = {};
+        dateRange.forEach(d => { dailyNet[d] = 0; dailyVolume[d] = 0; });
+
+        operational.forEach(t => {
+            if (!t.date) return;
+            const day = t.date.substring(0, 10);
+            const amount = parseFloat(t.amount) || 0;
+            const netChange = t.type === 'ingreso' ? amount : -amount;
+            dailyNet[day] = (dailyNet[day] || 0) + netChange;
+            dailyVolume[day] = (dailyVolume[day] || 0) + Math.abs(amount);
+        });
+
+        // Build cumulative balance and OHLC
+        let cumBalance = 0;
+        const rawCandles = dateRange.map(day => {
+            const open = cumBalance;
+            cumBalance += dailyNet[day];
+            const close = cumBalance;
+            return {
+                time: day,
+                open, close,
+                high: Math.max(open, close),
+                low: Math.min(open, close),
+                volume: dailyVolume[day]
+            };
+        });
+
+        // Add initial balance bar (previous day)
+        const prevDay = getPreviousDay(minDate);
+        const initialBar = { time: prevDay, open: 0, high: INITIAL_BALANCE, low: 0, close: INITIAL_BALANCE, volume: 0 };
+
+        // Shift all candles by INITIAL_BALANCE
+        const candles = [initialBar, ...rawCandles.map(c => ({
+            time: c.time,
+            open: c.open + INITIAL_BALANCE,
+            high: c.high + INITIAL_BALANCE,
+            low: c.low + INITIAL_BALANCE,
+            close: c.close + INITIAL_BALANCE,
+            volume: c.volume
+        }))];
+
+        return candles;
+    }
+
+    // MA(20) Hybrid calculation
+    function calculateMA(data, period = 20) {
+        const result = [];
+        for (let i = 0; i < data.length; i++) {
+            const windowSize = Math.min(period, i + 1);
+            const slice = data.slice(i - windowSize + 1, i + 1);
+            const avg = slice.reduce((s, d) => s + d.close, 0) / slice.length;
+            result.push({ time: data[i].time, value: Math.round(avg) });
+        }
+        return result;
+    }
+
+    // Bollinger Bands removed — kept Chart 1 clean as original
+
+    // CHART 2 DATA: Cashflow (Baseline)
+    function processCashflowData() {
+        const operational = filterCashflow(allTransactions);
+        if (operational.length === 0) return { income: [], expense: [], savings: [], balance: [] };
+
+        const dates = operational.filter(t => t.date).map(t => t.date.substring(0, 10));
+        const minDate = dates.sort()[0];
+        const maxDate = dates[dates.length - 1];
+        const dateRange = generateDateRange(minDate, maxDate);
+
+        // Group by day
+        const daily = {};
+        dateRange.forEach(d => { daily[d] = { ingresos: 0, gastos: 0, ahorros: 0, rendimientoAhorro: 0 }; });
+
+        operational.forEach(t => {
+            if (!t.date) return;
+            const day = t.date.substring(0, 10);
+            const amount = parseFloat(t.amount) || 0;
+            if (!daily[day]) daily[day] = { ingresos: 0, gastos: 0, ahorros: 0, rendimientoAhorro: 0 };
+            if (t.type === 'ingreso') daily[day].ingresos += amount;
+            else if (t.type === 'ahorro') daily[day].ahorros += amount;
+            else if (t.type === 'rendimiento_ahorro') daily[day].rendimientoAhorro += amount;
+            else if (t.type === 'gasto') daily[day].gastos += amount;
+        });
+
+        // Build series
+        let ahorroAcum = 0;
+        let runningBalance = INITIAL_BALANCE;
+        const incomeData = [], expenseData = [], savingsData = [], balanceData = [];
+
+        // Add initial point
+        const prevDay = getPreviousDay(minDate);
+        incomeData.push({ time: prevDay, value: 0 });
+        expenseData.push({ time: prevDay, value: 0 });
+        savingsData.push({ time: prevDay, value: 0 });
+        balanceData.push({ time: prevDay, value: INITIAL_BALANCE });
+
+        dateRange.forEach(day => {
+            const d = daily[day];
+            const gastosTotales = d.gastos + d.ahorros;
+            ahorroAcum += d.ahorros + d.rendimientoAhorro;
+            const netFlow = d.ingresos - gastosTotales;
+            runningBalance += netFlow;
+
+            incomeData.push({ time: day, value: d.ingresos });
+            expenseData.push({ time: day, value: -gastosTotales }); // Negative
+            savingsData.push({ time: day, value: ahorroAcum });
+            balanceData.push({ time: day, value: runningBalance });
+        });
+
+        return { income: incomeData, expense: expenseData, savings: savingsData, balance: balanceData };
+    }
+
+    // CHART 3 DATA: Credit/Debt
+    // KEY: Uses MASTER range from ALL transactions (not just credit ones)
+    // This ensures the chart covers the same time span as charts 1 & 2
+    function processCreditData() {
+        if (allTransactions.length === 0) return { debt: [], payments: [] };
+
+        // MASTER RANGE: from ALL transactions (same as charts 1 & 2)
+        const allDates = allTransactions.filter(t => t.date).map(t => t.date.substring(0, 10));
+        if (allDates.length === 0) return { debt: [], payments: [] };
+        const sortedAllDates = allDates.sort();
+        const masterMin = sortedAllDates[0];
+        const masterMax = sortedAllDates[sortedAllDates.length - 1];
+        const masterRange = generateDateRange(masterMin, masterMax);
+
+        // Filter: ONLY credit purchases (generate debt) and consignaciones (pay debt)
+        // Per backend docs: credit_gastos = (type=='gasto') & (payment_method=='crédito')
+        //                    consignaciones = (type=='consignación')
+        const creditTx = allTransactions.filter(t =>
+            (t.type === 'gasto' && t.payment_method === 'crédito') ||
+            t.type === 'consignación'
+        );
+
+        // Initialize daily maps for FULL master range
+        const dailyDebtChange = {};
+        const dailyPayment = {};
+        masterRange.forEach(d => { dailyDebtChange[d] = 0; dailyPayment[d] = 0; });
+
+        // Populate with credit transactions
+        creditTx.forEach(t => {
+            if (!t.date) return;
+            const day = t.date.substring(0, 10);
+            const amount = parseFloat(t.amount) || 0;
+            if (t.type === 'consignación') {
+                // Consignación reduces debt and counts as payment
+                dailyDebtChange[day] = (dailyDebtChange[day] || 0) - amount;
+                dailyPayment[day] = (dailyPayment[day] || 0) + amount;
+            } else {
+                // Credit purchase increases debt
+                dailyDebtChange[day] = (dailyDebtChange[day] || 0) + amount;
+            }
+        });
+
+        // Build cumulative debt with forward-fill behavior
+        let debtAccum = 0;
+        const debtData = [], paymentData = [];
+
+        // Add padding point (previous day) to align with charts 1 & 2
+        const prevDay = getPreviousDay(masterMin);
+        debtData.push({ time: prevDay, value: 0 });
+        paymentData.push({ time: prevDay, value: 0 });
+
+        masterRange.forEach(day => {
+            debtAccum += dailyDebtChange[day];
+            if (debtAccum < 0) debtAccum = 0;
+            debtData.push({ time: day, value: debtAccum });
+            paymentData.push({ time: day, value: dailyPayment[day] });
+        });
+
+        return { debt: debtData, payments: paymentData };
+    }
+
+    // RUNWAY PROJECTION DATA
+    function processRunwayData() {
+        const gastos = allTransactions.filter(t => t.type === 'gasto');
+        if (gastos.length === 0) return { days: 0, dailyBurn: 0, zeroDate: null, actual: [], projection: [] };
+
+        // Calculate current balance
+        let totalIngresos = 0, totalGastos = 0, totalAhorros = 0;
+        allTransactions.forEach(t => {
+            const a = parseFloat(t.amount) || 0;
+            if (t.type === 'ingreso') totalIngresos += a;
+            else if (t.type === 'gasto') totalGastos += a;
+            else if (t.type === 'ahorro') totalAhorros += a;
+        });
+        const currentBalance = INITIAL_BALANCE + totalIngresos - totalGastos - totalAhorros;
+
+        // Average daily burn (last 30 days)
+        const today = new Date();
+        const thirtyDaysAgo = new Date(today);
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const recentGastos = gastos.filter(t => {
+            const d = new Date(t.date);
+            return d >= thirtyDaysAgo && d <= today;
+        });
+        const recentTotal = recentGastos.reduce((s, t) => s + (parseFloat(t.amount) || 0), 0);
+        const daysCovered = Math.max(1, Math.ceil((today - thirtyDaysAgo) / 86400000));
+        const dailyBurn = recentTotal / daysCovered;
+
+        // Average daily income (last 30 days)
+        const recentIngresos = allTransactions.filter(t => {
+            if (t.type !== 'ingreso') return false;
+            const d = new Date(t.date);
+            return d >= thirtyDaysAgo && d <= today;
+        });
+        const dailyIncome = recentIngresos.reduce((s, t) => s + (parseFloat(t.amount) || 0), 0) / daysCovered;
+
+        const netBurn = dailyBurn - dailyIncome;
+        const runwayDays = netBurn > 0 ? Math.floor(currentBalance / netBurn) : 9999;
+        const zeroDate = new Date(today);
+        zeroDate.setDate(zeroDate.getDate() + runwayDays);
+
+        // Build actual balance history (last 60 days)
+        const sixtyDaysAgo = new Date(today);
+        sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+        const operational = filterOperational(allTransactions);
+        const sortedOps = [...operational].sort((a, b) => a.date.localeCompare(b.date));
+        
+        let cumBalance = INITIAL_BALANCE;
+        const balanceByDay = {};
+        sortedOps.forEach(t => {
+            const day = t.date.substring(0, 10);
+            const amount = parseFloat(t.amount) || 0;
+            cumBalance += t.type === 'ingreso' ? amount : -amount;
+            balanceByDay[day] = cumBalance;
+        });
+
+        // Get last known balance for actual series
+        const allDates = Object.keys(balanceByDay).sort();
+        const actualData = [];
+        let lastBal = INITIAL_BALANCE;
+        allDates.forEach(day => {
+            lastBal = balanceByDay[day];
+            if (new Date(day) >= sixtyDaysAgo) {
+                actualData.push({ time: day, value: lastBal });
+            }
+        });
+
+        // Build projection (30 days forward, dashed)
+        const projectionData = [];
+        const lastDate = allDates.length > 0 ? allDates[allDates.length - 1] : today.toISOString().substring(0, 10);
+        let projBalance = lastBal;
+        projectionData.push({ time: lastDate, value: projBalance });
+        for (let i = 1; i <= 45; i++) {
+            const d = new Date(lastDate);
+            d.setDate(d.getDate() + i);
+            projBalance -= netBurn;
+            if (projBalance < 0) projBalance = 0;
+            projectionData.push({ time: d.toISOString().substring(0, 10), value: Math.round(projBalance) });
+        }
+
+        return { days: runwayDays, dailyBurn: Math.round(dailyBurn), netBurn: Math.round(netBurn), zeroDate, actual: actualData, projection: projectionData };
+    }
+
+    // HEATMAP DATA: gastos por día de semana × semana
+    function processHeatmapData() {
+        const gastos = allTransactions.filter(t => t.type === 'gasto' && t.date);
+        const weekMap = {}; // 'YYYY-WW' => { 0: amount, 1: amount, ... 6: amount }
+        
+        gastos.forEach(t => {
+            const d = new Date(t.date);
+            const dayOfWeek = d.getDay(); // 0=Sun, 6=Sat
+            const weekNum = getWeekNumber(d);
+            const key = `${d.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+            if (!weekMap[key]) weekMap[key] = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+            weekMap[key][dayOfWeek] += parseFloat(t.amount) || 0;
+        });
+
+        return weekMap;
+    }
+
+    function getWeekNumber(d) {
+        const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+        const dayNum = date.getUTCDay() || 7;
+        date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+        const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+        return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+    }
+
+    // MONTHLY DATA: gastos e ingresos por mes
+    function processMonthlyData() {
+        const monthlyGastos = {};
+        const monthlyIngresos = {};
+        allTransactions.forEach(t => {
+            if (!t.date) return;
+            const month = t.date.substring(0, 7); // YYYY-MM
+            const amount = parseFloat(t.amount) || 0;
+            if (t.type === 'gasto') monthlyGastos[month] = (monthlyGastos[month] || 0) + amount;
+            else if (t.type === 'ingreso' && t.concept && t.concept.toLowerCase().includes('nómina')) {
+                monthlyIngresos[month] = (monthlyIngresos[month] || 0) + amount;
+            }
+        });
+        const months = [...new Set([...Object.keys(monthlyGastos), ...Object.keys(monthlyIngresos)])].sort();
+        return months.map(m => ({
+            month: m,
+            gastos: monthlyGastos[m] || 0,
+            ingresos: monthlyIngresos[m] || 0,
+        }));
+    }
+
+    // DONUT DATA: categorías top
+    function processDonutData() {
+        const catMap = {};
+        allTransactions.forEach(t => {
+            if (t.type !== 'gasto') return;
+            const key = t.subcategory || t.concept || 'Uncategorized';
+            catMap[key] = (catMap[key] || 0) + (parseFloat(t.amount) || 0);
+        });
+        const sorted = Object.entries(catMap).sort((a, b) => b[1] - a[1]);
+        const top = sorted.slice(0, 7);
+        const others = sorted.slice(7).reduce((s, [, v]) => s + v, 0);
+        if (others > 0) top.push(['Others', others]);
+        return top;
+    }
+
+    // ================================================================
+    // CHART INITIALIZATION
+    // ================================================================
+    const { createChart, CandlestickSeries, LineSeries, HistogramSeries, BaselineSeries, AreaSeries, LineStyle, LineType, CrosshairMode } = LightweightCharts;
+
+    function priceFormatter(price) {
+        if (window.innerWidth <= 520) {
+            if (Math.abs(price) >= 1000000) return (price / 1000000).toFixed(1) + 'M';
+            if (Math.abs(price) >= 1000) return (price / 1000).toFixed(0) + 'K';
+            return price.toFixed(0);
+        }
+        return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(price);
+    }
+
+    function getChartOptions(height) {
+        return {
+            height,
+            layout: { background: { color: '#000000' }, textColor: '#64748b', fontFamily: 'JetBrains Mono', fontSize: 9, attributionLogo: false },
+            grid: { vertLines: { color: '#0a0d16' }, horzLines: { color: '#0a0d16' } },
+            crosshair: { mode: CrosshairMode.Normal, horzLine: { visible: true, labelVisible: true, style: LineStyle.Dashed, width: 1, color: '#5d606b', labelBackgroundColor: '#1e222d' } },
+            rightPriceScale: { borderColor: '#1e293b', minimumWidth: 32 },
+            timeScale: { borderColor: '#1e293b', timeVisible: false, fixLeftEdge: true, fixRightEdge: true },
+            handleScale: false,
+            localization: { priceFormatter },
+        };
+    }
+
+    function initCharts() {
+        // CHART 1: Balance Diario
+        const c1 = document.getElementById('chart1-container');
+        chart1 = createChart(c1, { ...getChartOptions(250), rightPriceScale: { borderColor: '#1e293b', scaleMargins: { top: 0.1, bottom: 0.25 }, minimumWidth: 32 } });
+
+        candleSeries = chart1.addSeries(CandlestickSeries, {
+            upColor: 'rgba(24, 177, 29, 0.8)', downColor: 'rgba(233, 65, 70, 0.9)',
+            wickUpColor: 'rgb(76, 175, 80)', wickDownColor: 'rgb(239, 83, 80)',
+            borderVisible: false,
+        });
+
+        maSeries = chart1.addSeries(LineSeries, {
+            color: 'rgb(56, 97, 246)', lineWidth: 1, lineType: LineType.Curved,
+            priceLineVisible: false, lastValueVisible: false,
+        });
+
+        volumeSeries = chart1.addSeries(HistogramSeries, {
+            priceFormat: { type: 'volume' },
+            priceScaleId: 'volume_scale',
+        });
+        chart1.priceScale('volume_scale').applyOptions({ scaleMargins: { top: 0.75, bottom: 0 } });
+
+        // CHART 2: Flujo de Caja
+        const c2 = document.getElementById('chart2-container');
+        chart2 = createChart(c2, getChartOptions(200));
+
+        incomeSeries = chart2.addSeries(BaselineSeries, {
+            baseValue: { type: 'price', price: 0 },
+            topLineColor: 'rgba(76, 175, 80, 1)', topFillColor1: 'rgba(76, 175, 80, 0.4)', topFillColor2: 'rgba(76, 175, 80, 0)',
+            bottomLineColor: 'rgba(76, 175, 80, 0.5)', bottomFillColor1: 'transparent', bottomFillColor2: 'transparent',
+            lineWidth: 2, lineType: LineType.Curved,
+        });
+
+        expenseSeries = chart2.addSeries(BaselineSeries, {
+            baseValue: { type: 'price', price: 0 },
+            topLineColor: 'rgba(239, 83, 80, 0.5)', topFillColor1: 'transparent', topFillColor2: 'transparent',
+            bottomLineColor: 'rgba(239, 83, 80, 1)', bottomFillColor1: 'rgba(239, 83, 80, 0.4)', bottomFillColor2: 'transparent',
+            lineWidth: 2, lineType: LineType.Curved,
+        });
+
+        savingsSeries = chart2.addSeries(BaselineSeries, {
+            baseValue: { type: 'price', price: 0 },
+            topLineColor: 'rgba(33, 150, 243, 1)', topFillColor1: 'rgba(33, 150, 243, 0.4)', topFillColor2: 'rgba(33, 150, 243, 0)',
+            bottomLineColor: 'rgba(33, 150, 243, 0.5)', bottomFillColor1: 'transparent', bottomFillColor2: 'transparent',
+            lineWidth: 2, lineType: LineType.Curved,
+        });
+
+        balanceSeries = chart2.addSeries(BaselineSeries, {
+            baseValue: { type: 'price', price: 0 },
+            topLineColor: 'rgba(94, 114, 228, 1)', topFillColor1: 'rgba(94, 114, 228, 0.2)', topFillColor2: 'rgba(94, 114, 228, 0)',
+            bottomLineColor: 'rgba(94, 114, 228, 1)', bottomFillColor1: 'rgba(94, 114, 228, 0.2)', bottomFillColor2: 'transparent',
+            lineWidth: 2, lineType: LineType.Curved,
+        });
+
+        netFlowSeries = chart2.addSeries(HistogramSeries, {
+            priceFormat: { type: 'volume' },
+            priceScaleId: 'netflow_scale',
+        });
+        chart2.priceScale('netflow_scale').applyOptions({ scaleMargins: { top: 0.8, bottom: 0 }, visible: false });
+
+        // CHART 3: Deuda y Pagos
+        const c3 = document.getElementById('chart3-container');
+        chart3 = createChart(c3, { ...getChartOptions(180), watermark: { text: 'DEBT & PAYMENTS', fontSize: 36, color: 'rgba(0,0,0,0.04)', visible: true } });
+
+        debtSeries = chart3.addSeries(AreaSeries, {
+            lineColor: 'rgba(239, 83, 80, 1)', topColor: 'rgba(239, 83, 80, 0.4)', bottomColor: 'rgba(239, 83, 80, 0)',
+            lineWidth: 2, lineType: LineType.Curved,
+            crosshairMarkerVisible: true,
+        });
+
+        paymentSeries = chart3.addSeries(AreaSeries, {
+            lineColor: 'rgba(76, 175, 80, 1)', topColor: 'rgba(76, 175, 80, 0.5)', bottomColor: 'rgba(76, 175, 80, 0)',
+            lineWidth: 2, lineType: LineType.Curved,
+            crosshairMarkerVisible: true,
+            priceLineVisible: false, lastValueVisible: false,
+        });
+
+        // CHART RUNWAY: Projection
+        const cR = document.getElementById('chart-runway-container');
+        chartRunway = createChart(cR, { ...getChartOptions(120), rightPriceScale: { borderColor: '#1e293b', minimumWidth: 32 } });
+
+        runwayActualSeries = chartRunway.addSeries(AreaSeries, {
+            lineColor: 'rgba(0, 251, 251, 1)', topColor: 'rgba(0, 251, 251, 0.3)', bottomColor: 'rgba(0, 251, 251, 0)',
+            lineWidth: 2, lineType: LineType.Curved,
+            crosshairMarkerVisible: true,
+        });
+
+        runwayProjectionSeries = chartRunway.addSeries(LineSeries, {
+            color: 'rgba(251, 191, 36, 0.8)', lineWidth: 2, lineStyle: LineStyle.Dashed, lineType: LineType.Curved,
+            crosshairMarkerVisible: true, priceLineVisible: false, lastValueVisible: false,
+        });
+
+        // Sync timescales bidirectionally
+        syncCharts();
+        setupLegends();
+    }
+
+    // ================================================================
+    // CHART SYNC & LEGENDS
+    // ================================================================
+    let isSyncing = false;
+    function syncCharts() {
+        const charts = [chart1, chart2, chart3];
+        charts.forEach((source, si) => {
+            source.timeScale().subscribeVisibleLogicalRangeChange(range => {
+                if (isSyncing || !range) return;
+                isSyncing = true;
+                charts.forEach((target, ti) => {
+                    if (ti !== si) target.timeScale().setVisibleLogicalRange(range);
+                });
+                isSyncing = false;
+            });
+        });
+        // Runway has independent time range (not synced with main charts)
+    }
+
+    function setupLegends() {
+        // Chart 1 crosshair legend
+        chart1.subscribeCrosshairMove(param => {
+            const el = document.getElementById('legend-chart1');
+            if (!param || !param.time) { el.innerHTML = '<span class="text-slate-500">A: --- M: --- m: --- C: ---</span>'; return; }
+            const candle = param.seriesData.get(candleSeries);
+            const ma = param.seriesData.get(maSeries);
+            const vol = param.seriesData.get(volumeSeries);
+            if (candle) {
+                const color = candle.close >= candle.open ? '#4caf50' : '#ef5350';
+                el.innerHTML = `<span style="color:${color}">A:${priceFormatter(candle.open)} M:${priceFormatter(candle.high)} m:${priceFormatter(candle.low)} C:${priceFormatter(candle.close)}</span>` +
+                    (vol ? ` <span class="text-slate-500">Vol:${(vol.value/1000).toFixed(0)}K</span>` : '') +
+                    (ma ? ` <span style="color:#3861f6">MA:${priceFormatter(ma.value)}</span>` : '');
+            }
+        });
+
+        // Chart 2 crosshair legend
+        chart2.subscribeCrosshairMove(param => {
+            const el = document.getElementById('legend-chart2');
+            if (!param || !param.time) { el.innerHTML = '<span class="text-slate-500">Income: --- Expense: --- Savings: --- Balance: ---</span>'; return; }
+            const inc = param.seriesData.get(incomeSeries);
+            const exp = param.seriesData.get(expenseSeries);
+            const sav = param.seriesData.get(savingsSeries);
+            const bal = param.seriesData.get(balanceSeries);
+            let html = '';
+            if (inc) html += `<span style="color:#4caf50">Inc:${priceFormatter(inc.value)}</span> `;
+            if (exp) html += `<span style="color:#ef5350">Exp:${priceFormatter(exp.value)}</span> `;
+            if (sav) html += `<span style="color:#2196f3">Sav:${priceFormatter(sav.value)}</span> `;
+            if (bal) html += `<span style="color:#5e72e4">Bal:${priceFormatter(bal.value)}</span>`;
+            el.innerHTML = html || '<span class="text-slate-500">---</span>';
+        });
+
+        // Chart 3 crosshair legend
+        chart3.subscribeCrosshairMove(param => {
+            const el = document.getElementById('legend-chart3');
+            if (!param || !param.time) { el.innerHTML = '<span class="text-slate-500">Debt: --- Payment: ---</span>'; return; }
+            const debt = param.seriesData.get(debtSeries);
+            const pay = param.seriesData.get(paymentSeries);
+            let html = '';
+            if (debt) html += `<span style="color:#ef5350">Debt:${priceFormatter(debt.value)}</span> `;
+            if (pay && pay.value > 0) html += `<span style="color:#4caf50">Pay:${priceFormatter(pay.value)}</span>`;
+            el.innerHTML = html || '<span class="text-slate-500">---</span>';
+        });
+    }
+
+    // ================================================================
+    // INTERVAL / ZOOM CONTROL
+    // ================================================================
+    function setChartInterval(interval) {
+        currentInterval = interval;
+        document.querySelectorAll('#interval-buttons .interval-btn').forEach(btn => {
+            btn.className = btn.dataset.interval === interval
+                ? 'interval-btn interval-active' : 'interval-btn interval-inactive';
+        });
+        applyZoom();
+        addLog(`ZOOM: INTERVAL -> ${interval.toUpperCase()}`);
+    }
+
+    function applyZoom() {
+        const candles = processWaterfallData();
+        if (candles.length === 0) return;
+
+        let barsToShow;
+        switch (currentInterval) {
+            case '1m': barsToShow = 30; break;
+            case '3m': barsToShow = 90; break;
+            case '6m': barsToShow = 180; break;
+            case '1y': barsToShow = 252; break;
+            default: // 'all'
+                [chart1, chart2, chart3].forEach(c => c.timeScale().fitContent());
+                return;
+        }
+
+        const dataLen = candles.length;
+        const from = Math.max(0, dataLen - barsToShow);
+        const logicalRange = { from, to: dataLen - 1 };
+
+        [chart1, chart2, chart3].forEach(c => {
+            c.timeScale().setVisibleLogicalRange(logicalRange);
+        });
+    }
+
+    // ================================================================
+    // SERIES TOGGLE (Chart 2 pills)
+    // ================================================================
+    function toggleSeries(name) {
+        seriesVisibility[name] = !seriesVisibility[name];
+        const seriesMap = { income: incomeSeries, expense: expenseSeries, savings: savingsSeries, balance: balanceSeries, netflow: netFlowSeries };
+        const series = seriesMap[name];
+        if (series) series.applyOptions({ visible: seriesVisibility[name] });
+
+        // Update pill visual
+        const pills = document.querySelectorAll('#cashflow-pills .pill');
+        const names = ['income', 'expense', 'savings', 'balance', 'netflow'];
+        pills.forEach((pill, i) => {
+            pill.className = `pill ${seriesVisibility[names[i]] ? 'pill-active' : 'pill-inactive'}`;
+        });
+    }
+
+    // ================================================================
+    // RENDER CHARTS WITH DATA
+    // ================================================================
+    function renderCharts() {
+        // Chart 1: Waterfall candlestick
+        const candles = processWaterfallData();
+        if (candles.length > 0) {
+            candleSeries.setData(candles);
+
+            // Volume with colors
+            const volData = candles.map(c => ({
+                time: c.time,
+                value: c.volume,
+                color: c.close >= c.open ? 'rgba(76, 175, 80, 0.4)' : 'rgba(239, 83, 80, 0.4)'
+            }));
+            volumeSeries.setData(volData);
+
+            // MA(20)
+            const maData = calculateMA(candles, 20);
+            maSeries.setData(maData);
+        }
+
+        // Chart 2: Cashflow
+        const cashflow = processCashflowData();
+        if (cashflow.income.length > 0) {
+            incomeSeries.setData(cashflow.income);
+            expenseSeries.setData(cashflow.expense);
+            savingsSeries.setData(cashflow.savings);
+            balanceSeries.setData(cashflow.balance);
+
+            // Net Flow histogram (income - |expenses|)
+            const netFlowData = cashflow.income.map((inc, i) => {
+                const exp = cashflow.expense[i] ? Math.abs(cashflow.expense[i].value) : 0;
+                const net = inc.value - exp;
+                return {
+                    time: inc.time,
+                    value: net,
+                    color: net >= 0 ? 'rgba(0, 255, 102, 0.35)' : 'rgba(255, 51, 102, 0.35)'
+                };
+            });
+            netFlowSeries.setData(netFlowData);
+        }
+
+        // Chart 3: Credit
+        const credit = processCreditData();
+        if (credit.debt.length > 0) {
+            debtSeries.setData(credit.debt);
+            paymentSeries.setData(credit.payments);
+        }
+
+        // Chart Runway: Projection
+        const runway = processRunwayData();
+        if (runway.actual.length > 0) {
+            runwayActualSeries.setData(runway.actual);
+            runwayProjectionSeries.setData(runway.projection);
+            chartRunway.timeScale().fitContent();
+
+            // Update runway metrics
+            const fmt = (v) => v >= 1000000 ? `$${(v/1000000).toFixed(1)}M` : `$${(v/1000).toFixed(0)}K`;
+            document.getElementById('runway-days').textContent = runway.days > 9000 ? '∞' : `${runway.days}d`;
+            document.getElementById('runway-burn').textContent = `${fmt(runway.dailyBurn)}/day`;
+            if (runway.days <= 9000) {
+                const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                document.getElementById('runway-date').textContent = `${runway.zeroDate.getDate()} ${months[runway.zeroDate.getMonth()]} ${runway.zeroDate.getFullYear()}`;
+            } else {
+                document.getElementById('runway-date').textContent = 'NEVER';
+            }
+            // Runway bar (max 365 days = 100%)
+            const barPct = Math.min(100, (runway.days / 365) * 100);
+            document.getElementById('runway-bar').style.width = `${barPct}%`;
+        }
+
+        // Render new visualizations
+        renderHeatmap();
+        renderMonthlyBars();
+        renderDonut();
+
+        // Apply current zoom
+        applyZoom();
+    }
+
+    // ================================================================
+    // NEW VISUALIZATIONS: HEATMAP, MONTHLY BARS, DONUT
+    // ================================================================
+
+    function renderHeatmap() {
+        const container = document.getElementById('heatmap-container');
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        
+        // Update year label
+        const yearLabel = document.getElementById('heatmap-year-label');
+        if (yearLabel) yearLabel.textContent = currentYear;
+
+        // Build a map of all days in the year with spending data
+        const gastos = allTransactions.filter(t => t.type === 'gasto' && t.date);
+        const dayMap = {}; // 'YYYY-MM-DD' => amount
+        gastos.forEach(t => {
+            const dateStr = t.date.substring(0, 10);
+            dayMap[dateStr] = (dayMap[dateStr] || 0) + (parseFloat(t.amount) || 0);
+        });
+
+        // Find max for scaling
+        let maxAmount = 0;
+        Object.values(dayMap).forEach(v => { if (v > maxAmount) maxAmount = v; });
+
+        // Get all weeks of the year (Jan 1 to Dec 31)
+        const jan1 = new Date(currentYear, 0, 1);
+        const dec31 = new Date(currentYear, 11, 31);
+        
+        // Calculate the total number of weeks columns needed (Mon-first grid)
+        const startDay = jan1.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+        const mondayOffsetCalc = (startDay === 0) ? -6 : 1 - startDay;
+        // Last day of year: Dec 31
+        const lastDayOffset = Math.floor((dec31 - jan1) / 86400000);
+        const totalWeeks = Math.ceil((lastDayOffset - mondayOffsetCalc + 1) / 7);
+
+        // Multi-color gradient matching terminal aesthetic: dark → teal → cyan → bright cyan → white-cyan
+        function getColor(intensity) {
+            if (intensity === 0) return 'rgba(15, 23, 42, 0.4)';
+            if (intensity < 0.15) return 'rgba(0, 251, 251, 0.1)';    // barely visible cyan
+            if (intensity < 0.3) return 'rgba(0, 251, 251, 0.2)';     // faint cyan
+            if (intensity < 0.45) return 'rgba(0, 251, 251, 0.35)';   // light cyan
+            if (intensity < 0.6) return 'rgba(0, 251, 251, 0.5)';     // medium cyan
+            if (intensity < 0.75) return 'rgba(0, 251, 251, 0.65)';   // strong cyan
+            if (intensity < 0.9) return 'rgba(0, 251, 251, 0.8)';     // bright cyan
+            return 'rgba(0, 255, 102, 0.9)';                           // green (highest — alert level)
+        }
+
+        const dayLabels = ['Mon', '', 'Wed', '', 'Fri', '', ''];
+        const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        
+        // Calculate month positions for header labels
+        const monthPositions = [];
+        for (let m = 0; m < 12; m++) {
+            const firstOfMonth = new Date(currentYear, m, 1);
+            const daysSinceJan1 = Math.floor((firstOfMonth - jan1) / 86400000);
+            const weekCol = Math.floor((daysSinceJan1 - mondayOffsetCalc) / 7);
+            monthPositions.push({ month: monthNames[m], col: weekCol });
+        }
+
+        // Build the grid
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+        
+        let html = '';
+        // Month labels row
+        html += `<div style="display:grid;grid-template-columns:22px repeat(${totalWeeks}, 1fr);gap:1px;margin-bottom:3px;">`;
+        html += '<div></div>'; // empty corner
+        for (let w = 0; w < totalWeeks; w++) {
+            const monthInfo = monthPositions.find(mp => mp.col === w);
+            if (monthInfo) {
+                html += `<div class="heatmap-month-label">${monthInfo.month}</div>`;
+            } else {
+                html += '<div></div>';
+            }
+        }
+        html += '</div>';
+
+        // Day rows (7 rows: Mon-Sun)
+        // rowOrder maps row index to JS getDay() values: Mon=1, Tue=2, Wed=3, Thu=4, Fri=5, Sat=6, Sun=0
+        const rowOrder = [1, 2, 3, 4, 5, 6, 0]; // Mon first
+        
+        html += `<div style="display:grid;grid-template-columns:22px repeat(${totalWeeks}, 1fr);grid-template-rows:repeat(7, 1fr);gap:1px;">`;
+        
+        for (let row = 0; row < 7; row++) {
+            const targetDay = rowOrder[row];
+            html += `<div class="heatmap-label">${dayLabels[row]}</div>`;
+            
+            for (let w = 0; w < totalWeeks; w++) {
+                // Jan 1 is at column 0, position startDay (its getDay value)
+                // First Monday of or before Jan 1 determines the grid origin
+                // Grid origin = Jan 1 minus startDay (to align to Sunday start), then shift for Mon-first
+                // Simpler: for week w, day targetDay, the date offset from Jan 1 is:
+                //   (w * 7) + targetDay - startDay
+                // If startDay is the getDay() of Jan 1 (0=Sun), and we want Mon-first rows:
+                // The first column's Monday is at offset: (1 - startDay + 7) % 7 mapped differently
+                
+                // Most reliable: compute directly
+                // The grid starts on the Monday of the week containing Jan 1 (or Jan 1 itself if Monday)
+                // Actually simpler: iterate day by day from jan1, assign each to correct (week, dayOfWeek) cell
+                // But that's expensive in the loop. Instead:
+                
+                // The first cell (week 0, row Mon) corresponds to: 
+                // Jan 1 - (number of days from Monday to Jan1's day)
+                // If Jan 1 is Thursday (4), Mon of that week = Jan 1 - 3
+                // dayOffset from that Monday = w*7 + row
+                const mondayOffset = (startDay === 0) ? -6 : 1 - startDay; // days from Jan 1 to reach Monday of Jan1's week
+                const dayOffset = mondayOffset + w * 7 + row;
+                const cellDate = new Date(currentYear, 0, 1 + dayOffset);
+                
+                // Only render if it's in the current year
+                if (cellDate.getFullYear() !== currentYear) {
+                    html += `<div style="width:100%;aspect-ratio:1;border-radius:2px;background:transparent;"></div>`;
+                    continue;
+                }
+
+                const dateStr = `${cellDate.getFullYear()}-${String(cellDate.getMonth()+1).padStart(2,'0')}-${String(cellDate.getDate()).padStart(2,'0')}`;
+                const amount = dayMap[dateStr] || 0;
+                const intensity = maxAmount > 0 ? amount / maxAmount : 0;
+                const color = getColor(intensity);
+                const isToday = dateStr === todayStr;
+                const isFuture = cellDate > now;
+                const title = amount > 0 ? `${dateStr}: $${Math.round(amount/1000)}K` : `${dateStr}: $0`;
+                
+                let cellStyle = `width:100%;aspect-ratio:1;border-radius:2px;background:${isFuture ? 'rgba(15,23,42,0.2)' : color};`;
+                const todayClass = isToday ? ' heatmap-today' : '';
+                
+                html += `<div class="heatmap-cell${todayClass}" style="${cellStyle}" title="${title}"></div>`;
+            }
+        }
+        html += '</div>';
+
+        // Legend
+        html += '<div class="flex items-center justify-between mt-2">';
+        html += '<div class="flex items-center gap-1 text-[6px] text-slate-500">';
+        html += '<span>Less</span>';
+        html += '<div style="width:8px;height:8px;border-radius:1px;background:rgba(15,23,42,0.4)"></div>';
+        html += '<div style="width:8px;height:8px;border-radius:1px;background:rgba(0,251,251,0.15)"></div>';
+        html += '<div style="width:8px;height:8px;border-radius:1px;background:rgba(0,251,251,0.35)"></div>';
+        html += '<div style="width:8px;height:8px;border-radius:1px;background:rgba(0,251,251,0.55)"></div>';
+        html += '<div style="width:8px;height:8px;border-radius:1px;background:rgba(0,251,251,0.75)"></div>';
+        html += '<div style="width:8px;height:8px;border-radius:1px;background:rgba(0,255,102,0.9)"></div>';
+        html += '<span>More</span>';
+        html += '</div>';
+        html += '<div class="text-[6px] text-slate-500"><span class="text-[#00fbfb]">◻ today</span></div>';
+        html += '</div>';
+
+        container.innerHTML = html;
+    }
+
+    function renderMonthlyBars() {
+        const container = document.getElementById('monthly-bars-container');
+        const data = processMonthlyData();
+        if (data.length === 0) { container.innerHTML = '<div class="text-slate-500 text-[8px]">No data</div>'; return; }
+
+        const recent = data.slice(-6); // Last 6 months
+        const maxVal = Math.max(...recent.map(d => Math.max(d.gastos, d.ingresos)));
+
+        const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        
+        let html = '<div class="flex items-end justify-between gap-0.5" style="height: 70px;">';
+        recent.forEach((m, i) => {
+            const gH = maxVal > 0 ? (m.gastos / maxVal) * 100 : 0;
+            const iH = maxVal > 0 ? (m.ingresos / maxVal) * 100 : 0;
+            const monthLabel = monthNames[parseInt(m.month.split('-')[1]) - 1];
+            const prevGastos = i > 0 ? recent[i-1].gastos : m.gastos;
+            const trend = m.gastos > prevGastos ? '↑' : m.gastos < prevGastos ? '↓' : '→';
+            const trendColor = m.gastos > prevGastos ? '#ff3366' : m.gastos < prevGastos ? '#00ff66' : '#64748b';
+
+            html += `<div class="flex-1 flex flex-col items-center">`;
+            html += `<div class="text-[5px] font-bold mb-0.5" style="color:${trendColor}">${trend}</div>`;
+            html += `<div class="w-full flex justify-center gap-[1px] items-end" style="height:55px;">`;
+            html += `<div class="month-bar" style="width:28%;height:${gH}%;background:linear-gradient(180deg,#ff3366,#ff336640);border-radius:1px 1px 0 0;" title="Expenses: $${Math.round(m.gastos/1000)}K"></div>`;
+            html += `<div class="month-bar" style="width:28%;height:${iH}%;background:linear-gradient(180deg,#00ff66,#00ff6640);border-radius:1px 1px 0 0;" title="Income: $${Math.round(m.ingresos/1000)}K"></div>`;
+            html += `</div>`;
+            html += `<div class="text-[6px] text-center text-slate-500 mt-0.5">${monthLabel}</div>`;
+            html += `</div>`;
+        });
+        html += '</div>';
+        html += '<div class="flex justify-center gap-2 mt-1 text-[5.5px] text-slate-500"><span class="flex items-center gap-0.5"><span style="width:4px;height:4px;background:#ff3366;border-radius:1px;display:inline-block"></span>EXP</span><span class="flex items-center gap-0.5"><span style="width:4px;height:4px;background:#00ff66;border-radius:1px;display:inline-block"></span>INC</span></div>';
+        container.innerHTML = html;
+    }
+
+    function renderDonut() {
+        const container = document.getElementById('donut-container');
+        const data = processDonutData();
+        if (data.length === 0) { container.innerHTML = '<div class="text-slate-500 text-[8px]">No data</div>'; return; }
+
+        const total = data.reduce((s, [, v]) => s + v, 0);
+        const colors = ['#ff3366', '#00fbfb', '#fbbf24', '#00ff66', '#5e72e4', '#2196f3', '#e91e63', '#9c27b0'];
+        
+        // Build SVG donut
+        const size = 110;
+        const cx = size / 2, cy = size / 2;
+        const outerR = 48, innerR = 30;
+
+        let cumulativeAngle = 0;
+        let paths = '';
+        data.forEach(([name, amount], i) => {
+            const pct = amount / total;
+            const startAngle = cumulativeAngle;
+            const endAngle = cumulativeAngle + pct * 360;
+            cumulativeAngle = endAngle;
+            
+            const startRad = (startAngle - 90) * Math.PI / 180;
+            const endRad = (endAngle - 90) * Math.PI / 180;
+            const largeArc = pct > 0.5 ? 1 : 0;
+
+            const x1 = cx + outerR * Math.cos(startRad);
+            const y1 = cy + outerR * Math.sin(startRad);
+            const x2 = cx + outerR * Math.cos(endRad);
+            const y2 = cy + outerR * Math.sin(endRad);
+            const x3 = cx + innerR * Math.cos(endRad);
+            const y3 = cy + innerR * Math.sin(endRad);
+            const x4 = cx + innerR * Math.cos(startRad);
+            const y4 = cy + innerR * Math.sin(startRad);
+
+            const d = `M${x1},${y1} A${outerR},${outerR} 0 ${largeArc} 1 ${x2},${y2} L${x3},${y3} A${innerR},${innerR} 0 ${largeArc} 0 ${x4},${y4} Z`;
+            const color = colors[i % colors.length];
+            paths += `<path d="${d}" fill="${color}" opacity="0.85" stroke="#000" stroke-width="1"><title>${name}: $${Math.round(amount/1000)}K (${(pct*100).toFixed(0)}%)</title></path>`;
+        });
+
+        let svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${paths}`;
+        svg += `<circle cx="${cx}" cy="${cy}" r="${innerR - 2}" fill="#030712"/>`;
+        svg += `<text x="${cx}" y="${cy - 4}" text-anchor="middle" fill="#00fbfb" font-size="7" font-family="JetBrains Mono" font-weight="bold">TOTAL</text>`;
+        svg += `<text x="${cx}" y="${cy + 8}" text-anchor="middle" fill="#e2e8f0" font-size="8" font-family="JetBrains Mono" font-weight="bold">$${(total/1000000).toFixed(1)}M</text>`;
+        svg += `</svg>`;
+
+        // Legend
+        let legend = '<div class="flex flex-col">';
+        data.forEach(([name, amount], i) => {
+            const pct = ((amount / total) * 100).toFixed(0);
+            legend += `<div class="donut-legend-item"><span class="donut-legend-dot" style="background:${colors[i % colors.length]}"></span><span class="text-slate-400">${name.substring(0, 12)}</span><span class="text-white font-bold">${pct}%</span></div>`;
+        });
+        legend += '</div>';
+
+        container.innerHTML = `<div class="donut-container">${svg}</div>${legend}`;
+    }
+
+    // ================================================================
+    // DASHBOARD TABLE & BREAKDOWN
+    // ================================================================
+    function renderTransactionsTable() {
+        const tbody = document.getElementById('transactions-tbody');
+        tbody.innerHTML = '';
+        const sorted = [...allTransactions].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+        document.getElementById('tx-count-badge').textContent = `${sorted.length} records`;
+
+        sorted.slice(0, 60).forEach((t, i) => {
+            const tr = document.createElement('tr');
+            const isGasto = t.type === 'gasto';
+            const isIngreso = t.type === 'ingreso';
+            tr.className = `${i % 2 === 0 ? 'row-even' : 'row-odd'} hover:bg-[#0f172a] transition`;
+            const color = isIngreso ? 'text-[#00ff66]' : isGasto ? 'text-[#ff3366]' : 'text-[#fbbf24]';
+            const sign = isIngreso ? '+' : '-';
+            const amount = parseFloat(t.amount) || 0;
+            tr.innerHTML = `
+                <td class="p-1.5 pl-2 text-slate-400">${t.date || '---'}</td>
+                <td class="p-1.5 text-[7px] ${color} font-bold uppercase">${(t.type || '---').substring(0,10)}</td>
+                <td class="p-1.5 text-white">${(t.concept || '---').substring(0, 14)}</td>
+                <td class="p-1.5 text-slate-500">${(t.receiver || '---').substring(0, 12)}</td>
+                <td class="p-1.5 pr-2 text-right ${color} font-bold">${sign}$${amount.toLocaleString()}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function renderCategoryBreakdown() {
+        const container = document.getElementById('category-breakdown');
+        container.innerHTML = '';
+        const conceptMap = {};
+        allTransactions.forEach(t => {
+            if (t.type !== 'gasto') return;
+            const key = t.concept || 'No Concept';
+            conceptMap[key] = (conceptMap[key] || 0) + (parseFloat(t.amount) || 0);
+        });
+        const sorted = Object.entries(conceptMap).sort((a, b) => b[1] - a[1]).slice(0, 8);
+        const total = sorted.reduce((s, [, v]) => s + v, 0);
+        if (sorted.length === 0) { container.innerHTML = '<div class="text-slate-500">No data</div>'; return; }
+        sorted.forEach(([concept, amount]) => {
+            const pct = total > 0 ? (amount / total) * 100 : 0;
+            const color = pct > 25 ? '#ff3366' : pct > 15 ? '#fbbf24' : '#00fbfb';
+            const div = document.createElement('div');
+            div.innerHTML = `<div class="flex justify-between mb-0.5"><span class="text-slate-400">${concept}</span><span class="font-bold" style="color:${color}">${priceFormatter(amount)} (${pct.toFixed(0)}%)</span></div><div class="w-full bg-slate-800 h-1"><div class="h-1" style="width:${pct}%;background:${color}"></div></div>`;
+            container.appendChild(div);
+        });
+    }
+
+    function updateMetrics() {
+        let totalGastos = 0, totalIngresos = 0, totalAhorros = 0;
+        allTransactions.forEach(t => {
+            const a = parseFloat(t.amount) || 0;
+            if (t.type === 'gasto') totalGastos += a;
+            else if (t.type === 'ingreso') totalIngresos += a;
+            else if (t.type === 'ahorro') totalAhorros += a;
+        });
+        const balance = INITIAL_BALANCE + totalIngresos - totalGastos;
+        const fmt = (v) => v >= 1000000 ? `$${(v/1000000).toFixed(1)}M` : `$${(v/1000).toFixed(0)}K`;
+
+        document.getElementById('header-total-gastos').textContent = fmt(totalGastos);
+        document.getElementById('header-total-gastos').classList.remove('loading-pulse');
+        document.getElementById('header-total-ingresos').textContent = fmt(totalIngresos);
+        document.getElementById('header-total-ingresos').classList.remove('loading-pulse');
+        const balEl = document.getElementById('header-balance');
+        balEl.textContent = fmt(balance);
+        balEl.style.color = balance >= INITIAL_BALANCE ? '#00ff66' : '#ff3366';
+        balEl.classList.remove('loading-pulse');
+
+        // Signals
+        const burnPct = Math.min(100, (totalGastos / 10000000) * 100);
+        document.getElementById('signal-burn').textContent = `${fmt(totalGastos)} [${burnPct > 60 ? 'HIGH' : burnPct > 30 ? 'MOD' : 'LOW'}]`;
+        document.getElementById('signal-burn').style.color = burnPct > 60 ? '#ff3366' : burnPct > 30 ? '#fbbf24' : '#00ff66';
+        document.getElementById('signal-burn-bar').style.width = `${burnPct}%`;
+
+        // Savings Rate
+        const savingsRate = totalIngresos > 0 ? ((totalAhorros / totalIngresos) * 100).toFixed(1) : 0;
+        const srEl = document.getElementById('signal-savings-rate');
+        srEl.textContent = `${savingsRate}% [${savingsRate >= 20 ? 'GOOD' : savingsRate >= 10 ? 'OK' : 'LOW'}]`;
+        srEl.style.color = savingsRate >= 20 ? '#00ff66' : savingsRate >= 10 ? '#fbbf24' : '#ff3366';
+
+        const debit = allTransactions.filter(t => t.payment_method === 'débito').length;
+        const credit = allTransactions.filter(t => t.payment_method === 'crédito').length;
+        const totalM = debit + credit || 1;
+        document.getElementById('signal-ratio').textContent = `${((debit/totalM)*100).toFixed(0)}% DEB / ${((credit/totalM)*100).toFixed(0)}% CRD`;
+
+        // Active debt
+        const creditData = processCreditData();
+        if (creditData.debt.length > 0) {
+            const lastDebt = creditData.debt[creditData.debt.length - 1].value;
+            document.getElementById('signal-debt').textContent = fmt(lastDebt);
+        }
+
+        // Week Trend: this week vs last week spending
+        const today = new Date();
+        const thisWeekStart = new Date(today);
+        thisWeekStart.setDate(today.getDate() - today.getDay());
+        const lastWeekStart = new Date(thisWeekStart);
+        lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+        
+        let thisWeekSpend = 0, lastWeekSpend = 0;
+        allTransactions.forEach(t => {
+            if (t.type !== 'gasto' || !t.date) return;
+            const d = new Date(t.date);
+            const amount = parseFloat(t.amount) || 0;
+            if (d >= thisWeekStart && d <= today) thisWeekSpend += amount;
+            else if (d >= lastWeekStart && d < thisWeekStart) lastWeekSpend += amount;
+        });
+        const trendEl = document.getElementById('signal-trend');
+        const weekDiff = lastWeekSpend > 0 ? ((thisWeekSpend - lastWeekSpend) / lastWeekSpend * 100).toFixed(0) : 0;
+        if (thisWeekSpend > lastWeekSpend) {
+            trendEl.textContent = `↑ +${weekDiff}% vs PREV_WEEK`;
+            trendEl.style.color = '#ff3366';
+        } else if (thisWeekSpend < lastWeekSpend) {
+            trendEl.textContent = `↓ ${weekDiff}% vs PREV_WEEK`;
+            trendEl.style.color = '#00ff66';
+        } else {
+            trendEl.textContent = `→ FLAT vs PREV_WEEK`;
+            trendEl.style.color = '#64748b';
+        }
+
+        // Top Category Alert
+        const catMap = {};
+        allTransactions.forEach(t => {
+            if (t.type !== 'gasto') return;
+            const key = t.subcategory || t.concept || 'N/A';
+            catMap[key] = (catMap[key] || 0) + (parseFloat(t.amount) || 0);
+        });
+        const sortedCats = Object.entries(catMap).sort((a, b) => b[1] - a[1]);
+        const topCatEl = document.getElementById('signal-top-cat');
+        if (sortedCats.length > 0 && totalGastos > 0) {
+            const [topName, topAmount] = sortedCats[0];
+            const topPct = ((topAmount / totalGastos) * 100).toFixed(0);
+            topCatEl.textContent = `${topName.substring(0, 10)} → ${topPct}%`;
+            topCatEl.style.color = topPct > 30 ? '#ff3366' : topPct > 20 ? '#fbbf24' : '#00fbfb';
+        }
+
+        // Freshness
+        const sorted = [...allTransactions].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+        if (sorted.length > 0 && sorted[0].date) {
+            const diffDays = Math.floor((new Date() - new Date(sorted[0].date)) / 86400000);
+            const fEl = document.getElementById('signal-freshness');
+            fEl.textContent = `${diffDays}d AGO [${diffDays < 7 ? 'FRESH' : 'STALE'}]`;
+            fEl.style.color = diffDays < 7 ? '#00ff66' : '#fbbf24';
+        }
+    }
+
+    // ================================================================
+    // EDITOR TAB
+    // ================================================================
+    let editorFilter = 'all';
+    let selectMode = false;
+    let selectedRows = new Set();
+
+    function getUniqueValues(field) {
+        const vals = new Set();
+        allTransactions.forEach(t => { if (t[field]) vals.add(t[field]); });
+        return [...vals].sort();
+    }
+
+    function getEditorFilteredData() {
+        let data = [...allTransactions].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+        if (editorFilter !== 'all') {
+            data = data.filter(t => t.type === editorFilter);
+        }
+        const monthVal = document.getElementById('editor-month-filter').value;
+        if (monthVal !== 'all') {
+            data = data.filter(t => t.date && t.date.substring(0, 7) === monthVal);
+        }
+        return data;
+    }
+
+    function populateMonthFilter() {
+        const select = document.getElementById('editor-month-filter');
+        const months = new Set();
+        allTransactions.forEach(t => { if (t.date) months.add(t.date.substring(0, 7)); });
+        const sorted = [...months].sort().reverse();
+        select.innerHTML = '<option value="all">ALL MONTHS</option>';
+        sorted.forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m;
+            const [y, mo] = m.split('-');
+            const monthNames = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+            opt.textContent = `${monthNames[parseInt(mo)-1]} ${y}`;
+            select.appendChild(opt);
+        });
+    }
+
+    function setEditorFilter(filter) {
+        editorFilter = filter;
+        document.querySelectorAll('.editor-filter-btn').forEach(btn => {
+            if (btn.dataset.filter === filter) {
+                btn.className = 'editor-filter-btn text-[7px] font-bold px-2 py-0.5 rounded-sm border border-[#00fbfb] text-[#00fbfb] bg-[#0f172a]';
+            } else {
+                btn.className = 'editor-filter-btn text-[7px] font-bold px-2 py-0.5 rounded-sm border border-transparent text-slate-500';
+            }
+        });
+        renderEditorTable();
+    }
+
+    function toggleSelectMode() {
+        selectMode = !selectMode;
+        selectedRows.clear();
+        const btn = document.getElementById('btn-select-mode');
+        if (selectMode) {
+            btn.className = 'border border-[#00fbfb] bg-[#00fbfb]/10 text-[#00fbfb] px-2 py-0.5 text-[7px] font-bold transition';
+            btn.textContent = 'CANCEL';
+        } else {
+            btn.className = 'border border-slate-700 hover:bg-slate-800 text-slate-400 px-2 py-0.5 text-[7px] font-bold transition';
+            btn.textContent = 'SELECT';
+            document.getElementById('btn-delete-selected').classList.add('hidden');
+        }
+        renderEditorTable();
+    }
+
+    function toggleRowSelection(id) {
+        if (selectedRows.has(id)) selectedRows.delete(id);
+        else selectedRows.add(id);
+        document.getElementById('selected-count').textContent = selectedRows.size;
+        if (selectedRows.size > 0) document.getElementById('btn-delete-selected').classList.remove('hidden');
+        else document.getElementById('btn-delete-selected').classList.add('hidden');
+        // Update checkbox visual
+        const cb = document.getElementById(`cb-${id}`);
+        if (cb) cb.checked = selectedRows.has(id);
+    }
+
+    async function deleteSelected() {
+        if (selectedRows.size === 0) return;
+        if (!confirm(`⚠️ Delete ${selectedRows.size} record(s)? This cannot be undone.`)) return;
+        let deleted = 0;
+        for (const id of selectedRows) {
+            try {
+                await deleteTransaction(id);
+                allTransactions = allTransactions.filter(t => t.id !== id);
+                pendingChanges.delete(id);
+                deleted++;
+            } catch (e) { /* continue */ }
+        }
+        selectedRows.clear();
+        document.getElementById('btn-delete-selected').classList.add('hidden');
+        renderEditorTable();
+        showEditorStatus(`Deleted ${deleted} record(s)`, 'success');
+        updateDashboard();
+    }
+
+    // =====================================================
+    // AMOUNT CONTROL SYSTEM - Canonical numeric handling
+    // Prevents formatting corruption on focus/blur cycles
+    // =====================================================
+
+    /**
+     * Converts a canonical numeric value to display format (es-CO).
+     * Preview mode: hides decimals (e.g. 2.444.445)
+     * Edit mode: shows decimals (e.g. 2.444.444,72)
+     * @param {number|string} val - Canonical numeric value (e.g. 2444444.72)
+     * @param {boolean} showDecimals - Whether to show decimal places
+     * @returns {string} Formatted string for display
+     */
+    function formatAmountDisplay(val, showDecimals) {
+        if (val === null || val === undefined || val === '') return '';
+        const num = typeof val === 'number' ? val : parseFloat(val);
+        if (isNaN(num)) return '';
+        if (showDecimals) {
+            return num.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+        return Math.round(num).toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    }
+
+    /**
+     * Parses user input (which may be in es-CO format or plain numeric) to a canonical number.
+     * Handles both "2.444.444,72" (es-CO) and "2444444.72" (raw numeric from dataset).
+     * Detection logic:
+     *   - If the string contains a comma → treat as es-CO format (dots=thousands, comma=decimal)
+     *   - If the string has only dots → determine by position (last dot with ≤2 digits after = decimal)
+     *   - If it's a plain number → parseFloat directly
+     * @param {string} val - User input or raw value
+     * @returns {number} Canonical numeric value
+     */
+    function parseAmountInput(val) {
+        if (!val && val !== 0) return 0;
+        const str = String(val).trim();
+        if (!str) return 0;
+
+        // If it's already a clean number (no locale formatting), parse directly
+        // Pattern: optional minus, digits, optional single dot with digits after
+        if (/^-?\d+(\.\d+)?$/.test(str)) {
+            const num = parseFloat(str);
+            return isNaN(num) ? 0 : num;
+        }
+
+        // es-CO format: dots as thousands, comma as decimal (e.g. "2.444.444,72")
+        if (str.includes(',')) {
+            const cleaned = str.replace(/\./g, '').replace(',', '.');
+            const num = parseFloat(cleaned);
+            return isNaN(num) ? 0 : num;
+        }
+
+        // Only dots present - determine context:
+        // If multiple dots → they are thousands separators (e.g. "2.444.444")
+        const dots = (str.match(/\./g) || []);
+        if (dots.length > 1) {
+            const cleaned = str.replace(/\./g, '');
+            const num = parseFloat(cleaned);
+            return isNaN(num) ? 0 : num;
+        }
+
+        // Single dot: could be decimal (2444444.72) or thousands (2.444)
+        // Heuristic: if 3 digits after the single dot and digits before → thousands separator
+        if (dots.length === 1) {
+            const parts = str.split('.');
+            if (parts[1] && parts[1].length === 3 && parts[0].length >= 1 && parts[0].length <= 3) {
+                // Likely thousands separator: "2.444" → 2444
+                const num = parseFloat(str.replace('.', ''));
+                return isNaN(num) ? 0 : num;
+            }
+            // Otherwise treat as decimal: "2444444.72" → 2444444.72
+            const num = parseFloat(str);
+            return isNaN(num) ? 0 : num;
+        }
+
+        // Fallback: strip non-numeric except dot
+        const fallback = parseFloat(str.replace(/[^0-9.-]/g, ''));
+        return isNaN(fallback) ? 0 : fallback;
+    }
+
+    function formatAmountInput(input) {
+        // Allow typing with thousands separators and comma decimal
+        let raw = input.value.replace(/[^0-9.,\-]/g, '');
+        input.value = raw;
+    }
+
+    function getTypeRowClass(type) {
+        if (type === 'gasto') return 'row-type-gasto';
+        if (type === 'ingreso') return 'row-type-ingreso';
+        if (type === 'ahorro') return 'row-type-ahorro';
+        if (type === 'consignación') return 'row-type-consignacion';
+        return '';
+    }
+
+    function onAmountFocus(input) {
+        // On focus: show raw numeric value with decimal dot, no thousands separators
+        // e.g. 2444444.72 (easy to edit without locale confusion)
+        const rawVal = parseFloat(input.dataset.raw);
+        // Store the canonical value at focus time to detect real changes on blur
+        input.dataset.focusRaw = input.dataset.raw || '';
+        if (!isNaN(rawVal) && rawVal !== 0) {
+            input.value = rawVal.toString();
+        } else {
+            input.value = '';
+        }
+    }
+
+    function onAmountBlur(input) {
+        // On blur: parse what the user typed, store canonical value, show preview (no decimals)
+        const userInput = input.value;
+        if (!userInput || userInput.trim() === '') {
+            input.dataset.raw = '';
+            input.value = '';
+            return;
+        }
+        const parsed = parseAmountInput(userInput);
+        input.dataset.raw = parsed;
+        // Preview mode: hide decimals
+        input.value = formatAmountDisplay(parsed, false);
+    }
+
+    function onAmountCellChange(input) {
+        const parsed = parseAmountInput(input.value);
+        const previousRaw = parseFloat(input.dataset.focusRaw) || 0;
+        // Only mark as changed if the value actually changed
+        if (parsed === previousRaw) return;
+        input.dataset.raw = parsed;
+        // Mark as changed with the canonical numeric value
+        const id = input.dataset.id;
+        const field = input.dataset.field;
+        input.classList.add('modified');
+        input.classList.remove('saved');
+        if (!pendingChanges.has(id)) pendingChanges.set(id, {});
+        pendingChanges.get(id)[field] = parsed;
+        document.getElementById('btn-save-all').classList.remove('hidden');
+        document.getElementById('btn-discard-all').classList.remove('hidden');
+        document.getElementById('pending-count').textContent = pendingChanges.size;
+    }
+
+    function buildConceptOptions(currentVal) {
+        const concepts = getUniqueValues('concept');
+        let opts = '<option value="">--</option>';
+        concepts.forEach(c => {
+            opts += `<option value="${c}" ${c === currentVal ? 'selected' : ''}>${c.length > 16 ? c.substring(0,16)+'…' : c}</option>`;
+        });
+        opts += `<option value="__custom__">✎ otro</option>`;
+        return opts;
+    }
+
+    function buildSubcategoryOptions(currentVal) {
+        const subcats = getUniqueValues('subcategory');
+        let opts = '<option value="">--</option>';
+        subcats.forEach(s => {
+            opts += `<option value="${s}" ${s === currentVal ? 'selected' : ''}>${s.length > 16 ? s.substring(0,16)+'…' : s}</option>`;
+        });
+        opts += `<option value="__custom__">✎ otro</option>`;
+        return opts;
+    }
+
+    function onEditorSelectChange(selectEl, field) {
+        if (selectEl.value === '__custom__') {
+            const id = selectEl.dataset.id;
+            const customInput = document.createElement('input');
+            customInput.type = 'text';
+            customInput.className = 'edit-cell modified';
+            customInput.dataset.id = id;
+            customInput.dataset.field = field;
+            customInput.placeholder = 'type...';
+            customInput.onchange = function() { markChanged(this); };
+            selectEl.parentNode.replaceChild(customInput, selectEl);
+            customInput.focus();
+            markChanged(customInput);
+        } else {
+            markChanged(selectEl);
+        }
+    }
+
+    function renderEditorTable() {
+        const tbody = document.getElementById('editor-tbody');
+        tbody.innerHTML = '';
+        populateMonthFilter();
+        const sorted = getEditorFilteredData();
+        document.getElementById('editor-count').textContent = `${sorted.length} rows`;
+
+        // Show/hide select column
+        const thSelect = document.getElementById('th-select');
+        thSelect.style.display = selectMode ? '' : 'none';
+
+        sorted.forEach((t, i) => {
+            const tr = document.createElement('tr');
+            const typeClass = getTypeRowClass(t.type);
+            tr.className = `${i % 2 === 0 ? 'row-even' : 'row-odd'} ${typeClass}`;
+            tr.id = `row-${t.id}`;
+
+            // Checkbox cell
+            const checkCell = selectMode ? `<td class="p-0.5 text-center" style="display:${selectMode ? '' : 'none'}">
+                <input type="checkbox" id="cb-${t.id}" ${selectedRows.has(t.id) ? 'checked' : ''} onchange="toggleRowSelection('${t.id}')" class="terminal-checkbox">
+            </td>` : `<td style="display:none"></td>`;
+
+            // Amount formatted (preview mode: no decimals)
+            const amountFormatted = formatAmountDisplay(t.amount, false);
+            const amountColor = t.type === 'ingreso' ? 'text-[#00ff66]' : t.type === 'gasto' ? 'text-[#ff3366]' : 'text-white';
+
+            tr.innerHTML = `
+                ${checkCell}
+                <td class="p-0.5"><input type="date" class="edit-cell edit-cell-date" value="${t.date || ''}" data-id="${t.id}" data-field="date" onchange="markChanged(this)"></td>
+                <td class="p-0.5"><select class="edit-cell" style="font-size:9px;padding:2px 2px;" data-id="${t.id}" data-field="type" onchange="markChanged(this)">
+                    <option value="gasto" ${t.type==='gasto'?'selected':''}>gasto</option>
+                    <option value="ingreso" ${t.type==='ingreso'?'selected':''}>ingre</option>
+                    <option value="ahorro" ${t.type==='ahorro'?'selected':''}>ahorro</option>
+                    <option value="consignación" ${t.type==='consignación'?'selected':''}>pago</option>
+                </select></td>
+                <td class="p-0.5"><select class="edit-cell" style="font-size:9px;padding:2px 2px;" data-id="${t.id}" data-field="concept" onchange="onEditorSelectChange(this,'concept')">
+                    ${buildConceptOptions(t.concept)}
+                </select></td>
+                <td class="p-0.5"><select class="edit-cell" style="font-size:9px;padding:2px 2px;" data-id="${t.id}" data-field="subcategory" onchange="onEditorSelectChange(this,'subcategory')">
+                    ${buildSubcategoryOptions(t.subcategory)}
+                </select></td>
+                <td class="p-0.5 text-right"><input type="text" inputmode="decimal" class="edit-cell text-right font-bold ${amountColor}" style="font-size:9px;padding:2px 3px;" value="${amountFormatted}" data-id="${t.id}" data-field="amount" data-raw="${t.amount || ''}" onchange="onAmountCellChange(this)" onfocus="onAmountFocus(this)" onblur="onAmountBlur(this)"></td>
+                <td class="p-0.5"><select class="edit-cell" style="font-size:9px;padding:2px 2px;" data-id="${t.id}" data-field="payment_method" onchange="markChanged(this)">
+                    <option value="" ${!t.payment_method?'selected':''}></option>
+                    <option value="débito" ${t.payment_method==='débito'?'selected':''}>déb</option>
+                    <option value="crédito" ${t.payment_method==='crédito'?'selected':''}>créd</option>
+                </select></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function markChanged(input) {
+        const id = input.dataset.id;
+        const field = input.dataset.field;
+        input.classList.add('modified');
+        input.classList.remove('saved');
+        if (!pendingChanges.has(id)) pendingChanges.set(id, {});
+        pendingChanges.get(id)[field] = input.value;
+        document.getElementById('btn-save-all').classList.remove('hidden');
+        document.getElementById('btn-discard-all').classList.remove('hidden');
+        document.getElementById('pending-count').textContent = pendingChanges.size;
+    }
+
+    async function saveRow(id) {
+        const row = document.getElementById(`row-${id}`);
+        if (!row) return;
+        const inputs = row.querySelectorAll('[data-id][data-field]');
+        const updates = {};
+        inputs.forEach(inp => {
+            if (inp.dataset.field === 'amount') {
+                // Use canonical numeric value from data-raw, not the formatted display
+                updates[inp.dataset.field] = parseFloat(inp.dataset.raw) || null;
+            } else {
+                updates[inp.dataset.field] = inp.value || null;
+            }
+        });
+        try {
+            await updateTransaction(id, updates);
+            inputs.forEach(inp => { inp.classList.remove('modified'); inp.classList.add('saved'); });
+            pendingChanges.delete(id);
+            updatePendingUI();
+            showEditorStatus('Row saved', 'success');
+            const idx = allTransactions.findIndex(t => t.id === id);
+            if (idx >= 0) Object.assign(allTransactions[idx], updates);
+        } catch (e) { showEditorStatus(`Error: ${e.message}`, 'error'); }
+    }
+
+    async function saveAllChanges() {
+        const entries = [...pendingChanges.entries()];
+        let saved = 0;
+        for (const [id, changes] of entries) {
+            try {
+                await updateTransaction(id, changes);
+                pendingChanges.delete(id);
+                const row = document.getElementById(`row-${id}`);
+                if (row) Object.keys(changes).forEach(f => {
+                    const inp = row.querySelector(`[data-field="${f}"]`);
+                    if (inp) { inp.classList.remove('modified'); inp.classList.add('saved'); }
+                });
+                const idx = allTransactions.findIndex(t => t.id === id);
+                if (idx >= 0) Object.assign(allTransactions[idx], changes);
+                saved++;
+            } catch (e) { /* continue */ }
+        }
+        updatePendingUI();
+        showEditorStatus(`Saved ${saved}/${entries.length}`, saved === entries.length ? 'success' : 'error');
+        if (saved > 0) updateDashboard();
+    }
+
+    async function deleteRow(id) {
+        if (!confirm('Delete this record?')) return;
+        try {
+            await deleteTransaction(id);
+            allTransactions = allTransactions.filter(t => t.id !== id);
+            pendingChanges.delete(id);
+            renderEditorTable();
+            showEditorStatus('Deleted', 'success');
+            updateDashboard();
+        } catch (e) { showEditorStatus(`Error: ${e.message}`, 'error'); }
+    }
+
+    // ================================================================
+    // NEW ROW MODAL
+    // ================================================================
+    function openNewRowModal() {
+        // Set defaults
+        document.getElementById('modal-date').value = new Date().toISOString().substring(0, 10);
+        document.getElementById('modal-type').value = 'gasto';
+        document.getElementById('modal-concept').value = '';
+        document.getElementById('modal-concept').classList.add('hidden');
+        document.getElementById('modal-receiver').value = '';
+        document.getElementById('modal-subcategory').value = '';
+        document.getElementById('modal-subcategory').classList.add('hidden');
+        document.getElementById('modal-amount').value = '';
+        document.getElementById('modal-method').value = 'débito';
+        document.getElementById('modal-description').value = '';
+        document.getElementById('modal-status').classList.add('hidden');
+
+        // Populate concept dropdown
+        const conceptSelect = document.getElementById('modal-concept-select');
+        const concepts = getUniqueValues('concept');
+        conceptSelect.innerHTML = '<option value="">-- select --</option>';
+        concepts.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c;
+            opt.textContent = c;
+            conceptSelect.appendChild(opt);
+        });
+        conceptSelect.innerHTML += '<option value="__custom__">✎ Other (type custom)...</option>';
+
+        // Populate subcategory dropdown
+        const subcatSelect = document.getElementById('modal-subcategory-select');
+        const subcats = getUniqueValues('subcategory');
+        subcatSelect.innerHTML = '<option value="">-- select --</option>';
+        subcats.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s;
+            opt.textContent = s;
+            subcatSelect.appendChild(opt);
+        });
+        subcatSelect.innerHTML += '<option value="__custom__">✎ Other (type custom)...</option>';
+
+        document.getElementById('modal-overlay').classList.remove('hidden');
+        setTimeout(() => document.getElementById('modal-amount').focus(), 100);
+    }
+
+    function onModalConceptSelect() {
+        const sel = document.getElementById('modal-concept-select');
+        const input = document.getElementById('modal-concept');
+        if (sel.value === '__custom__') {
+            input.classList.remove('hidden');
+            input.focus();
+        } else {
+            input.classList.add('hidden');
+            input.value = sel.value;
+        }
+    }
+
+    function onModalSubcategorySelect() {
+        const sel = document.getElementById('modal-subcategory-select');
+        const input = document.getElementById('modal-subcategory');
+        if (sel.value === '__custom__') {
+            input.classList.remove('hidden');
+            input.focus();
+        } else {
+            input.classList.add('hidden');
+            input.value = sel.value;
+        }
+    }
+
+    function closeNewRowModal() {
+        document.getElementById('modal-overlay').classList.add('hidden');
+    }
+
+    function closeModalOnBackdrop(event) {
+        if (event.target === document.getElementById('modal-overlay')) {
+            closeNewRowModal();
+        }
+    }
+
+    function onModalTypeChange() {
+        const type = document.getElementById('modal-type').value;
+        const methodSelect = document.getElementById('modal-method');
+        if (type === 'consignación') {
+            methodSelect.value = '';
+            methodSelect.disabled = true;
+        } else {
+            methodSelect.disabled = false;
+        }
+    }
+
+    async function submitNewRowModal() {
+        const date = document.getElementById('modal-date').value;
+        const type = document.getElementById('modal-type').value;
+        const conceptSelect = document.getElementById('modal-concept-select');
+        const conceptInput = document.getElementById('modal-concept');
+        const concept = conceptSelect.value === '__custom__' 
+            ? conceptInput.value.trim() 
+            : (conceptSelect.value || conceptInput.value.trim());
+        const receiver = document.getElementById('modal-receiver').value.trim();
+        const subcatSelect = document.getElementById('modal-subcategory-select');
+        const subcatInput = document.getElementById('modal-subcategory');
+        const subcategory = subcatSelect.value === '__custom__'
+            ? subcatInput.value.trim()
+            : (subcatSelect.value || subcatInput.value.trim());
+        const amountRaw = document.getElementById('modal-amount').value;
+        const amount = parseAmountInput(amountRaw);
+        const method = document.getElementById('modal-method').value;
+        const description = document.getElementById('modal-description').value.trim();
+
+        // Basic validation
+        if (!date || !amount || amount <= 0) {
+            showModalStatus('Date and amount are required', 'error');
+            return;
+        }
+
+        const record = {
+            date,
+            type,
+            concept: concept || null,
+            receiver: receiver || null,
+            subcategory: subcategory || null,
+            amount: amount,
+            payment_method: type === 'consignación' ? null : (method || null),
+            description: description || null,
+        };
+
+        const btn = document.getElementById('modal-submit-btn');
+        btn.textContent = 'SAVING...';
+        btn.disabled = true;
+
+        try {
+            const created = await insertTransaction(record);
+            allTransactions.unshift(created);
+            showModalStatus('Record created', 'success');
+            addLog(`MODAL_INSERT: ${type} $${amount.toLocaleString()} -> ${concept || 'N/A'}`, 'success');
+
+            // Close after brief delay to show success
+            setTimeout(() => {
+                closeNewRowModal();
+                // Refresh views
+                if (!document.getElementById('view-editor').classList.contains('hidden')) renderEditorTable();
+                updateDashboard();
+            }, 600);
+        } catch (e) {
+            showModalStatus(`Error: ${e.message}`, 'error');
+            addLog(`MODAL_ERROR: ${e.message}`, 'error');
+        } finally {
+            btn.textContent = 'COMMIT';
+            btn.disabled = false;
+        }
+    }
+
+    function showModalStatus(msg, type) {
+        const el = document.getElementById('modal-status');
+        el.classList.remove('hidden');
+        el.textContent = msg;
+        el.style.color = type === 'success' ? '#00ff66' : '#ff3366';
+        if (type === 'error') setTimeout(() => el.classList.add('hidden'), 3000);
+    }
+
+    // Allow submit with Enter key inside modal
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !document.getElementById('modal-overlay').classList.contains('hidden')) {
+            e.preventDefault();
+            submitNewRowModal();
+        }
+        if (e.key === 'Escape' && !document.getElementById('modal-overlay').classList.contains('hidden')) {
+            closeNewRowModal();
+        }
+    });
+
+    function updatePendingUI() {
+        const btnSave = document.getElementById('btn-save-all');
+        const btnDiscard = document.getElementById('btn-discard-all');
+        if (pendingChanges.size === 0) {
+            btnSave.classList.add('hidden');
+            btnDiscard.classList.add('hidden');
+        } else {
+            btnSave.classList.remove('hidden');
+            btnDiscard.classList.remove('hidden');
+            document.getElementById('pending-count').textContent = pendingChanges.size;
+        }
+    }
+
+    function discardAllChanges() {
+        pendingChanges.clear();
+        updatePendingUI();
+        renderEditorTable();
+        showEditorStatus('All changes discarded', 'info');
+    }
+
+    function showEditorStatus(msg, type) {
+        const el = document.getElementById('editor-status');
+        el.classList.remove('hidden');
+        el.textContent = msg;
+        el.style.color = type === 'success' ? '#00ff66' : '#ff3366';
+        setTimeout(() => el.classList.add('hidden'), 3000);
+    }
+
+    // ================================================================
+    // TAB NAVIGATION & UTILITIES
+    // ================================================================
+    function switchTab(tab) {
+        const dashboard = document.getElementById('view-dashboard');
+        const editor = document.getElementById('view-editor');
+        const tabDash = document.getElementById('tab-dashboard');
+        const tabEdit = document.getElementById('tab-editor');
+        if (tab === 'dashboard') {
+            dashboard.classList.remove('hidden');
+            editor.classList.add('hidden');
+            tabDash.className = 'flex-1 py-2 text-[10px] font-bold tracking-wider tab-active transition-all';
+            tabEdit.className = 'flex-1 py-2 text-[10px] font-bold tracking-wider tab-inactive transition-all';
+            setTimeout(() => resizeCharts(), 100);
+        } else {
+            dashboard.classList.add('hidden');
+            editor.classList.remove('hidden');
+            tabDash.className = 'flex-1 py-2 text-[10px] font-bold tracking-wider tab-inactive transition-all';
+            tabEdit.className = 'flex-1 py-2 text-[10px] font-bold tracking-wider tab-active transition-all';
+            renderEditorTable();
+        }
+    }
+
+    function resizeCharts() {
+        [
+            [chart1, 'chart1-container'],
+            [chart2, 'chart2-container'],
+            [chart3, 'chart3-container'],
+            [chartRunway, 'chart-runway-container']
+        ].forEach(([chart, containerId]) => {
+            if (chart) {
+                const el = document.getElementById(containerId);
+                chart.applyOptions({ width: el.clientWidth });
+            }
+        });
+    }
+
+    function updateDBStatus(connected) {
+        const el = document.getElementById('db-status');
+        if (connected) {
+            el.textContent = 'LIVE';
+            el.className = 'bg-[#00ff66]/15 text-[#00ff66] px-1.5 py-0.5 text-[7.5px] font-bold uppercase animate-pulse';
+        } else {
+            el.textContent = 'OFFLINE';
+            el.className = 'bg-[#ff3366]/15 text-[#ff3366] px-1.5 py-0.5 text-[7.5px] font-bold uppercase';
+        }
+    }
+
+    function addLog(msg, type = 'info') {
+        const container = document.getElementById('terminal-logs');
+        if (!container) return;
+        const time = new Date().toLocaleTimeString();
+        let color = 'text-[#00fbfb]/80';
+        if (type === 'error') color = 'text-[#ff3366]';
+        if (type === 'success') color = 'text-[#00ff66]';
+        const line = document.createElement('div');
+        line.className = `${color} py-[1px] border-b border-slate-950 leading-tight`;
+        line.textContent = `\u26A1 [${time}] ${msg}`;
+        container.insertBefore(line, container.firstChild);
+        if (container.children.length > 30) container.removeChild(container.lastChild);
+    }
+
+    // ================================================================
+    // MASTER UPDATE & INIT
+    // ================================================================
+    function updateDashboard() {
+        updateMetrics();
+        renderCharts();
+        renderTransactionsTable();
+        renderCategoryBreakdown();
+    }
+
+    async function refreshData() {
+        addLog('SYNC: MANUAL REFRESH');
+        await fetchTransactions();
+        updateDashboard();
+        if (!document.getElementById('view-editor').classList.contains('hidden')) renderEditorTable();
+    }
+
+    window.onload = async () => {
+        addLog('SYSTEM_INIT: FINANCE TERMINAL v4.0', 'success');
+        addLog('CHARTS: INIT LIGHTWEIGHT_CHARTS (3 synced)...');
+        initCharts();
+        addLog('DB: CONNECTING SUPABASE...');
+        await fetchTransactions();
+        updateDashboard();
+        addLog('RENDER: ALL SYSTEMS GO', 'success');
+
+        // Default interval based on screen
+        if (window.innerWidth <= 520) setChartInterval('3m');
+
+        // Telemetry
+        window.setInterval(() => {
+            if (Math.random() > 0.8) {
+                const msgs = ['HEARTBEAT: ALIVE', `CACHE: ${allTransactions.length} records`, 'CHARTS: SYNCED', 'SIGNAL: NOMINAL'];
+                addLog(msgs[Math.floor(Math.random() * msgs.length)]);
+            }
+        }, 6000);
+    };
+
+    window.onresize = () => resizeCharts();
+    </script>
+</body>
+</html>

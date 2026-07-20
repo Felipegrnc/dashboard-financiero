@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Quant Finance Terminal - Mobile Viewport</title>
+    <!-- Tailwind CSS for high-fidelity mobile layout -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;700;800&display=swap');
+        
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background-color: #030408;
+            color: #f1f5f9;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Neon & Cyberpunk accents exactly matching Android theme colors */
+        .neon-cyan-text { color: #00fbfb; }
+        .neon-cyan-border { border-color: #00fbfb; }
+        .neon-green-text { color: #00ff66; }
+        .neon-green-bg { background-color: #00ff66; }
+        .neon-red-text { color: #ff3366; }
+        .neon-red-bg { background-color: #ff3366; }
+
+        /* Scrollbar custom style */
+        ::-webkit-scrollbar {
+            width: 3px;
+            height: 3px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #020617;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+        }
+    </style>
+</head>
+<body class="flex justify-center bg-[#07090e] min-h-screen">
+
+    <!-- MOBILE MAIN CONTAINER -->
+    <div class="w-full max-w-[430px] bg-[#000000] min-h-screen border-x border-slate-900 shadow-2xl flex flex-col p-2 space-y-2 relative pb-8">
+        
+        <!-- TERMINAL HEADER -->
+        <header class="border border-slate-900 bg-[#02050a] p-2 space-y-2">
+            <div class="flex justify-between items-start">
+                <div>
+                    <h1 class="text-sm font-black tracking-wider text-white">QUANT FINANCE TERMINAL</h1>
+                    <p class="text-[9px] text-[#00fbfb]">PERSONAL_FINANCIAL_COGNITIVE_GRID // v4.28</p>
+                </div>
+                <button onclick="resetLedger()" class="border border-red-500/40 hover:bg-red-500/10 text-[#ff3366] px-1.5 py-0.5 text-[8px] transition duration-200">
+                    PURGE_LEDGER
+                </button>
+            </div>
+            
+            <!-- COMPACT METRICS PANEL -->
+            <div class="grid grid-cols-3 gap-1 border-t border-slate-900 pt-2 text-[10px]">
+                <div class="border-l border-slate-800 pl-1.5">
+                    <span class="text-slate-500 block text-[7px] font-bold">NET_WORTH_EVAL</span>
+                    <span id="header-net-worth" class="font-black text-[#00ff66]">$176,242.05</span>
+                </div>
+                <div class="border-l border-slate-800 pl-1.5">
+                    <span class="text-slate-500 block text-[7px] font-bold">LIQUID_CASH</span>
+                    <span id="header-cash" class="font-black text-white">$5,430.22</span>
+                </div>
+                <div class="border-l border-slate-800 pl-1.5 pr-1">
+                    <span class="text-slate-500 block text-[7px] font-bold">ACTIVE_P/L_MAPPED</span>
+                    <span id="header-pl" class="font-black text-[#00ff66]">+$14,285.40</span>
+                    <span id="header-pl-pct" class="text-[7.5px] text-[#00ff66]/80 block leading-tight">+8.81%</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- SCROLLABLE CONTENT -->
+        <main class="space-y-2 flex-grow overflow-y-auto pr-0.5">
+
+            <!-- 1. PRIMARY CHART (CANDLESTICK) -->
+            <section class="border border-slate-900 bg-[#000000]">
+                <!-- Section Header -->
+                <div class="flex justify-between items-center bg-[#05070c] px-2 py-1 text-[9px] border-b border-slate-900">
+                    <span class="font-bold text-[#00fbfb] tracking-wide">PRIMARY_CORE_VISUALIZER: <span id="active-symbol-title">BTC</span></span>
+                    <span class="bg-[#00ff66]/15 text-[#00ff66] px-1 text-[7.5px] font-bold uppercase animate-pulse">LIVE</span>
+                </div>
+
+                <!-- Asset Selectors -->
+                <div class="grid grid-cols-4 bg-[#030712] text-center text-[9px] border-b border-slate-900 p-0.5 gap-0.5">
+                    <button onclick="selectSymbol('BTC')" id="btn-BTC" class="py-1 font-bold text-[#00fbfb] bg-[#0f172a] border border-[#00fbfb] rounded-sm transition-all">BTC</button>
+                    <button onclick="selectSymbol('ETH')" id="btn-ETH" class="py-1 font-bold text-slate-500 hover:text-white rounded-sm transition-all">ETH</button>
+                    <button onclick="selectSymbol('NVDA')" id="btn-NVDA" class="py-1 font-bold text-slate-500 hover:text-white rounded-sm transition-all">NVDA</button>
+                    <button onclick="selectSymbol('TSLA')" id="btn-TSLA" class="py-1 font-bold text-slate-500 hover:text-white rounded-sm transition-all">TSLA</button>
+                </div>
+
+                <!-- Datos O-H-L-C de la vela actual en formato super compacto -->
+                <div class="grid grid-cols-5 text-[8px] px-2 py-1 bg-black border-b border-slate-900 text-slate-500 font-bold">
+                    <div>O: <span id="stat-open" class="text-white">-</span></div>
+                    <div>H: <span id="stat-high" class="text-white">-</span></div>
+                    <div>L: <span id="stat-low" class="text-white">-</span></div>
+                    <div>C: <span id="stat-close" class="text-white">-</span></div>
+                    <div class="text-right">VAR: <span id="stat-var" class="text-white">-</span></div>
+                </div>
+
+                <!-- Canvas Container -->
+                <div class="p-1 bg-[#000000] relative">
+                    <canvas id="primary-chart" height="190" class="w-full bg-[#000000] block cursor-crosshair"></canvas>
+                </div>
+            </section>
+
+            <!-- 2. SECONDARY TECH MINI CHARTS -->
+            <div class="grid grid-cols-2 gap-1.5">
+                <!-- Mini Sensor 1 -->
+                <section class="border border-slate-900 bg-black">
+                    <div class="bg-[#05070c] px-2 py-0.5 text-[8px] border-b border-slate-900 flex justify-between">
+                        <span class="font-bold text-[#06b6d4]">SEC_TECH: <span id="mini-1-title">ETH</span></span>
+                        <span id="mini-1-price" class="text-white font-bold">-</span>
+                    </div>
+                    <div class="p-0.5">
+                        <canvas id="mini-chart-1" height="85" class="w-full bg-black block"></canvas>
+                    </div>
+                </section>
+                <!-- Mini Sensor 2 -->
+                <section class="border border-slate-900 bg-black">
+                    <div class="bg-[#05070c] px-2 py-0.5 text-[8px] border-b border-slate-900 flex justify-between">
+                        <span class="font-bold text-[#06b6d4]">SEC_TECH: <span id="mini-2-title">NVDA</span></span>
+                        <span id="mini-2-price" class="text-white font-bold">-</span>
+                    </div>
+                    <div class="p-0.5">
+                        <canvas id="mini-chart-2" height="85" class="w-full bg-black block"></canvas>
+                    </div>
+                </section>
+            </div>
+
+            <!-- 3. OPERATIONS COCKPIT CONSOLE -->
+            <section class="border border-slate-900 bg-black">
+                <div class="bg-[#05070c] px-2 py-1 text-[9px] border-b border-slate-900">
+                    <span class="font-bold text-white tracking-wide">LEDGER_EXECUTION_CONSOLE</span>
+                </div>
+                <div class="p-2 bg-[#030712] space-y-2">
+                    
+                    <!-- BUY/SELL/INCOME/EXPENSE BUTTONS -->
+                    <div class="grid grid-cols-4 gap-0.5 border border-slate-850 p-0.5 bg-black">
+                        <button onclick="setTxType('BUY')" id="tx-BUY" class="py-1 text-[8.5px] font-bold text-[#00ff66] bg-[#15803d]/20 border border-[#00ff66] rounded-sm transition duration-150">BUY</button>
+                        <button onclick="setTxType('SELL')" id="tx-SELL" class="py-1 text-[8.5px] font-bold text-slate-500 hover:text-white rounded-sm transition duration-150">SELL</button>
+                        <button onclick="setTxType('INCOME')" id="tx-INCOME" class="py-1 text-[8.5px] font-bold text-slate-500 hover:text-white rounded-sm transition duration-150">INCOME</button>
+                        <button onclick="setTxType('EXPENSE')" id="tx-EXPENSE" class="py-1 text-[8.5px] font-bold text-slate-500 hover:text-white rounded-sm transition duration-150">EXPENSE</button>
+                    </div>
+
+                    <!-- FORM FIELDS -->
+                    <div class="grid grid-cols-3 gap-1.5">
+                        <!-- Asset -->
+                        <div>
+                            <label class="block text-[7.5px] text-slate-500 mb-0.5 font-bold">ASSET</label>
+                            <select id="form-asset" onchange="autoFillPrice()" class="w-full bg-black border border-slate-800 text-white text-[10px] p-1 focus:border-[#00fbfb] outline-none rounded-sm">
+                                <option value="BTC">BTC</option>
+                                <option value="ETH">ETH</option>
+                                <option value="NVDA">NVDA</option>
+                                <option value="TSLA">TSLA</option>
+                                <option value="USD">USD (Cash)</option>
+                            </select>
+                        </div>
+                        <!-- Size / Qty -->
+                        <div class="col-span-2">
+                            <label class="block text-[7.5px] text-slate-500 mb-0.5 font-bold">SIZE / QTY</label>
+                            <input type="number" step="any" id="form-qty" placeholder="E.g. 0.05" class="w-full bg-black border border-slate-800 text-white text-[10px] p-1 focus:border-[#00fbfb] outline-none rounded-sm">
+                        </div>
+                    </div>
+
+                    <!-- Reference Price -->
+                    <div>
+                        <div class="flex justify-between items-center mb-0.5">
+                            <label class="text-[7.5px] text-slate-500 font-bold">REF_PRICE (USD)</label>
+                            <button onclick="autoFillPrice()" class="text-[7.5px] text-[#00fbfb] bg-[#0f172a] border border-[#00fbfb]/30 px-1 rounded-sm hover:bg-slate-900">LIVE</button>
+                        </div>
+                        <input type="number" step="any" id="form-price" class="w-full bg-black border border-slate-800 text-white text-[10px] p-1 focus:border-[#00fbfb] outline-none rounded-sm">
+                    </div>
+
+                    <!-- Transaction Note -->
+                    <div>
+                        <label class="block text-[7.5px] text-slate-500 mb-0.5 font-bold">TRANSACTION NOTE</label>
+                        <input type="text" id="form-note" placeholder="E.g. Bullish channel hedge" class="w-full bg-black border border-slate-800 text-white text-[10px] p-1 focus:border-[#00fbfb] outline-none rounded-sm">
+                    </div>
+
+                    <!-- Submit Action Button -->
+                    <button onclick="submitTransaction()" id="btn-submit" class="w-full py-1.5 text-[9.5px] font-bold text-black bg-[#00ff66]/80 hover:bg-[#00ff66] transition duration-150 rounded-sm">
+                        COMMIT: LEDGER_ACTION_LOG
+                    </button>
+
+                    <!-- Status Box / validation logs -->
+                    <div id="status-box" class="hidden p-1.5 text-[8.5px] border rounded-sm"></div>
+                </div>
+            </section>
+
+            <!-- 4. CORE INVENTORY TABLE -->
+            <section class="border border-slate-900 bg-black">
+                <div class="bg-[#05070c] px-2 py-1 text-[9px] border-b border-slate-900">
+                    <span class="font-bold text-white tracking-wide">CORE_INVENTORY_MGMT</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-[9px] text-left">
+                        <thead class="bg-[#020617] text-slate-500 uppercase border-b border-slate-900">
+                            <tr class="font-bold">
+                                <th class="p-1.5 pl-2">SYMBOL</th>
+                                <th class="p-1.5">HOLDINGS</th>
+                                <th class="p-1.5">ENTRY_P</th>
+                                <th class="p-1.5">MARKET_P</th>
+                                <th class="p-1.5 pr-2 text-right">P/L (USD)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventory-tbody" class="divide-y divide-slate-950">
+                            <!-- Dynamically injected by Script -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 5. TELEMETRY RECORDS (LIVE DIAGNOSTICS) -->
+            <section class="border border-slate-900 bg-black">
+                <div class="bg-[#05070c] px-2 py-1 text-[9px] border-b border-slate-900">
+                    <span class="font-bold text-[#00fbfb] tracking-wide">TELEMETRY_STREAM</span>
+                </div>
+                <div id="terminal-logs" class="p-1.5 bg-[#02040a] h-20 overflow-y-auto text-[7.5px] space-y-0.5 text-[#00fbfb]/80 border-t border-slate-950 font-mono">
+                    <!-- Fast logs injected here -->
+                </div>
+            </section>
+
+            <!-- 6. SIGNAL MATRIX & RISK MONITORS -->
+            <section class="border border-slate-900 bg-black">
+                <div class="bg-[#05070c] px-2 py-1 text-[9px] border-b border-slate-900">
+                    <span class="font-bold text-white tracking-wide">SIGNAL_MATRIX</span>
+                </div>
+                <div class="p-2 bg-[#030712] space-y-2 text-[8px]">
+                    
+                    <!-- Sigma Volatility -->
+                    <div>
+                        <div class="flex justify-between mb-0.5">
+                            <span class="text-slate-500">VOLATILITY_SIGMA_14</span>
+                            <span class="text-[#fbbf24] font-bold">2.44 [MODERATE]</span>
+                        </div>
+                        <div class="w-full bg-slate-800 h-1">
+                            <div class="bg-[#fbbf24] h-1" style="width: 48%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Depth -->
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-500">LIQUIDITY_DEPTH_SCAN</span>
+                        <span class="flex items-center text-[#00ff66] font-bold">
+                            <span class="w-1.5 h-1.5 bg-[#00ff66] rounded-full mr-1 animate-pulse"></span>
+                            STABLE
+                        </span>
+                    </div>
+
+                    <!-- Latency -->
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-500">SENTIMENT_LATENCY</span>
+                        <span class="flex items-center text-[#00ff66] font-bold">
+                            <span class="w-1.5 h-1.5 bg-[#00ff66] rounded-full mr-1"></span>
+                            OPTIMAL (14ms)
+                        </span>
+                    </div>
+
+                    <!-- Risk Margin -->
+                    <div>
+                        <div class="flex justify-between mb-0.5">
+                            <span class="text-slate-500">PORTFOLIO_CREDIT_RISK_RATIO</span>
+                            <span class="text-[#00fbfb] font-bold">18.4% [SAFE_ZONE]</span>
+                        </div>
+                        <div class="w-full bg-slate-800 h-1">
+                            <div class="bg-[#00fbfb] h-1" style="width: 18.4%"></div>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+        </main>
+
+        <!-- MOBILE FOOTER -->
+        <footer class="text-center text-[7.5px] text-slate-600 mt-1 border-t border-slate-950 pt-2 font-mono">
+            SECURE FINANCIAL GRID CORE SYSTEM v4.28 // LOCAL_LEDGER: DISK_ST_OK
+        </footer>
+
+    </div>
+
+    <!-- INTERACTIVE SCRIPT & REAL-TIME GENERATION -->
+    <script>
+        // Configuración de base de datos mock local para persistencia real sin servidor
+        let assets = [
+            { symbol: "USD", name: "USD Cash", type: "CASH", holdings: 5430.22, avgPurchasePrice: 1.0, currentPrice: 1.0 },
+            { symbol: "BTC", name: "Bitcoin", type: "CRYPTO", holdings: 1.5, avgPurchasePrice: 65200.0, currentPrice: 68420.5 },
+            { symbol: "ETH", name: "Ethereum", type: "CRYPTO", holdings: 8.5, avgPurchasePrice: 3120.0, currentPrice: 3450.12 },
+            { symbol: "NVDA", name: "NVIDIA Corp", type: "STOCK", holdings: 120.0, avgPurchasePrice: 810.5, currentPrice: 892.45 },
+            { symbol: "TSLA", name: "Tesla Inc", type: "STOCK", holdings: 50.0, avgPurchasePrice: 185.2, currentPrice: 174.15 }
+        ];
+
+        let selectedSymbol = 'BTC';
+        let txType = 'BUY';
+        let candlesMap = {};
+        const symbols = ["BTC", "ETH", "NVDA", "TSLA"];
+
+        // Historial técnico aleatorio realista con velas diarias
+        function generateInitialCandles(symbol) {
+            let candles = [];
+            let startPrice = symbol === "BTC" ? 68420 : symbol === "ETH" ? 3450 : symbol === "NVDA" ? 892 : 174;
+            let volatility = symbol === "BTC" ? 0.015 : symbol === "ETH" ? 0.02 : symbol === "NVDA" ? 0.025 : 0.03;
+            
+            let currentClose = startPrice;
+            const now = Date.now();
+            const interval = 86400000;
+
+            for (let i = 44; i >= 0; i--) {
+                let date = now - (i * interval);
+                let trend = i >= 30 && i <= 40 ? 0.8 : i >= 15 && i <= 29 ? -1.0 : 0.3;
+                let changePercent = (Math.random() - 0.45 + (trend * 0.12)) * volatility;
+                
+                let open = currentClose;
+                let close = open * (1 + changePercent);
+                let maxDelta = open * (volatility * (0.2 + Math.random() * 1.2));
+                let high = Math.max(open, close) + (Math.random() * maxDelta);
+                let low = Math.min(open, close) - (Math.random() * maxDelta);
+                let volume = 1000 + Math.random() * 19000;
+
+                candles.push({ timestamp: date, open, high, low, close, volume });
+                currentClose = close;
+            }
+            return candles;
+        }
+
+        // Cargar velas
+        symbols.forEach(sym => {
+            candlesMap[sym] = generateInitialCandles(sym);
+        });
+
+        // Oscilaciones en tiempo real cada segundo (Ticker simulado)
+        function simulateTick(sym) {
+            let candles = candlesMap[sym];
+            if (!candles || candles.length === 0) return;
+            
+            let last = candles[candles.length - 1];
+            let volatility = sym === "BTC" ? 0.0008 : sym === "ETH" ? 0.0012 : sym === "NVDA" ? 0.0015 : 0.0018;
+            let changePercent = (Math.random() - 0.49) * volatility;
+            
+            let oldClose = last.close;
+            let newClose = oldClose * (1 + changePercent);
+            
+            last.close = newClose;
+            last.high = Math.max(last.high, newClose);
+            last.low = Math.min(last.low, newClose);
+            last.volume += Math.random() * 12;
+
+            let asset = assets.find(a => a.symbol === sym);
+            if (asset) {
+                asset.currentPrice = newClose;
+            }
+        }
+
+        // Persistencia local storage para imitar base de datos interna SQLite/Room
+        if (localStorage.getItem('terminal_assets')) {
+            assets = JSON.parse(localStorage.getItem('terminal_assets'));
+        }
+
+        function saveState() {
+            localStorage.setItem('terminal_assets', JSON.stringify(assets));
+        }
+
+        // Sistema de Logs integrado idéntico
+        function addLog(msg, type = 'info') {
+            const container = document.getElementById('terminal-logs');
+            const time = new Date().toLocaleTimeString();
+            let colorClass = 'text-[#00fbfb]/80';
+            if (type === 'error' || msg.includes('REJECTED')) colorClass = 'text-[#ff3366]';
+            if (type === 'success' || msg.includes('COMMIT')) colorClass = 'text-[#00ff66]';
+
+            const logLine = document.createElement('div');
+            logLine.className = `${colorClass} py-[1px] border-b border-slate-950 leading-tight`;
+            logLine.innerText = `⚡ [${time}] ${msg}`;
+            container.insertBefore(logLine, container.firstChild);
+
+            if (container.children.length > 25) {
+                container.removeChild(container.lastChild);
+            }
+        }
+
+        // Gráfico técnico de velas en Canvas con escala ultra-nítida Retina
+        function drawCandlestickChart(canvasId, candles, sym, isMini = false) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * window.devicePixelRatio;
+            canvas.height = rect.height * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+            const width = rect.width;
+            const height = rect.height;
+
+            const rightAxisWidth = isMini ? 35 : 55;
+            const bottomAxisHeight = isMini ? 12 : 16;
+
+            const chartWidth = width - rightAxisWidth;
+            const chartHeight = height - bottomAxisHeight;
+
+            if (chartWidth <= 0 || chartHeight <= 0 || candles.length === 0) return;
+
+            const visibleCount = isMini ? 15 : 30;
+            const startIndex = Math.max(0, candles.length - visibleCount);
+            const visibleCandles = candles.slice(startIndex);
+
+            let minPrice = Infinity;
+            let maxPrice = -Infinity;
+            let maxVol = 0;
+
+            visibleCandles.forEach(c => {
+                if (c.low < minPrice) minPrice = c.low;
+                if (c.high > maxPrice) maxPrice = c.high;
+                if (c.volume > maxVol) maxVol = c.volume;
+            });
+
+            const pad = (maxPrice - minPrice) * 0.1 || 1;
+            const scaleMin = minPrice - pad;
+            const scaleMax = maxPrice + pad;
+            const scaleRange = scaleMax - scaleMin;
+
+            const getY = (val) => chartHeight - ((val - scaleMin) / scaleRange) * chartHeight;
+
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, width, height);
+
+            ctx.strokeStyle = '#0a0d16';
+            ctx.lineWidth = 0.5;
+            const grids = isMini ? 3 : 5;
+            for (let j = 0; j <= grids; j++) {
+                const y = (chartHeight / grids) * j;
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(chartWidth, y);
+                ctx.stroke();
+
+                ctx.fillStyle = '#475569';
+                ctx.font = isMini ? '6.5px JetBrains Mono' : '8px JetBrains Mono';
+                const priceLabel = scaleMax - (j / grids) * scaleRange;
+                ctx.fillText(priceLabel.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1}), chartWidth + 3, y + 2.5);
+            }
+
+            const candleWidth = chartWidth / visibleCandles.length;
+            visibleCandles.forEach((c, index) => {
+                const x = index * candleWidth + (candleWidth / 2);
+                const isBull = c.close >= c.open;
+                const candleColor = isBull ? '#00ff66' : '#ff3366';
+
+                ctx.strokeStyle = candleColor;
+                ctx.lineWidth = 0.8;
+                ctx.beginPath();
+                ctx.moveTo(x, getY(c.high));
+                ctx.lineTo(x, getY(c.low));
+                ctx.stroke();
+
+                const bodyTop = getY(Math.max(c.open, c.close));
+                const bodyBot = getY(Math.min(c.open, c.close));
+                const bodyHeight = Math.max(bodyBot - bodyTop, 0.8);
+                ctx.fillStyle = candleColor;
+                ctx.fillRect(x - (candleWidth * 0.32), bodyTop, candleWidth * 0.64, bodyHeight);
+
+                const volHeight = (c.volume / maxVol) * (chartHeight * 0.12);
+                ctx.fillStyle = isBull ? 'rgba(0, 255, 102, 0.12)' : 'rgba(255, 51, 102, 0.12)';
+                ctx.fillRect(x - (candleWidth * 0.32), chartHeight - volHeight, candleWidth * 0.64, volHeight);
+            });
+
+            const lastCandle = candles[candles.length - 1];
+            const currentY = getY(lastCandle.close);
+            ctx.strokeStyle = 'rgba(241, 245, 249, 0.25)';
+            ctx.setLineDash([3, 3]);
+            ctx.beginPath();
+            ctx.moveTo(0, currentY);
+            ctx.lineTo(chartWidth, currentY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.fillStyle = lastCandle.close >= lastCandle.open ? '#00ff66' : '#ff3366';
+            ctx.fillRect(chartWidth + 1, currentY - 5, rightAxisWidth - 2, 10);
+            ctx.fillStyle = '#000000';
+            ctx.font = 'bold 7.5px JetBrains Mono';
+            ctx.fillText(lastCandle.close.toFixed(1), chartWidth + 3, currentY + 3);
+        }
+
+        // Selección de Activos
+        function selectSymbol(sym) {
+            selectedSymbol = sym;
+            symbols.forEach(s => {
+                const btn = document.getElementById(`btn-${s}`);
+                if (btn) {
+                    if (s === sym) {
+                        btn.className = "py-1 font-bold text-[#00fbfb] bg-[#0f172a] border border-[#00fbfb] rounded-sm transition-all";
+                    } else {
+                        btn.className = "py-1 font-bold text-slate-500 hover:text-white rounded-sm transition-all";
+                    }
+                }
+            });
+            document.getElementById('active-symbol-title').innerText = sym;
+            
+            if (txType === 'BUY' || txType === 'SELL') {
+                document.getElementById('form-asset').value = sym;
+            }
+
+            addLog(`VIEW_STATE: ATTACHED_PRIMARY_VISUALIZER -> ${sym}`);
+            autoFillPrice();
+            updateUI();
+        }
+
+        // Configuración de pestañas de transacciones
+        function setTxType(type) {
+            txType = type;
+            listOfTypes = ['BUY', 'SELL', 'INCOME', 'EXPENSE'];
+            listOfTypes.forEach(t => {
+                const btn = document.getElementById(`tx-${t}`);
+                if (btn) {
+                    if (t === type) {
+                        let activeStyles = "text-[#00ff66] bg-[#15803d]/20 border-[#00ff66]";
+                        if (type === 'SELL') activeStyles = "text-[#ff3366] bg-[#b91c1c]/20 border-[#ff3366]";
+                        if (type === 'INCOME' || type === 'EXPENSE') activeStyles = "text-[#00fbfb] bg-[#0369a1]/20 border-[#00fbfb]";
+                        btn.className = `py-1 text-[8.5px] font-bold border rounded-sm ${activeStyles}`;
+                    } else {
+                        btn.className = "py-1 text-[8.5px] font-bold text-slate-500 hover:text-white border border-transparent rounded-sm";
+                    }
+                }
+            });
+
+            const assetSelect = document.getElementById('form-asset');
+            if (type === 'INCOME' || type === 'EXPENSE') {
+                assetSelect.value = 'USD';
+                assetSelect.disabled = true;
+            } else {
+                assetSelect.value = selectedSymbol;
+                assetSelect.disabled = false;
+            }
+
+            const submitBtn = document.getElementById('btn-submit');
+            if (type === 'BUY') submitBtn.className = "w-full py-1.5 text-[9.5px] font-bold text-black bg-[#00ff66]/80 hover:bg-[#00ff66] transition duration-150 rounded-sm";
+            if (type === 'SELL') submitBtn.className = "w-full py-1.5 text-[9.5px] font-bold text-black bg-[#ff3366]/80 hover:bg-[#ff3366] transition duration-150 rounded-sm";
+            if (type === 'INCOME' || type === 'EXPENSE') submitBtn.className = "w-full py-1.5 text-[9.5px] font-bold text-black bg-[#00fbfb]/80 hover:bg-[#00fbfb] transition duration-150 rounded-sm";
+
+            autoFillPrice();
+        }
+
+        function autoFillPrice() {
+            const assetSym = document.getElementById('form-asset').value;
+            const priceInput = document.getElementById('form-price');
+            
+            if (txType === 'INCOME' || txType === 'EXPENSE' || assetSym === 'USD') {
+                priceInput.value = "1.00";
+                priceInput.disabled = true;
+            } else {
+                priceInput.disabled = false;
+                const asset = assets.find(a => a.symbol === assetSym);
+                if (asset) {
+                    priceInput.value = asset.currentPrice.toFixed(2);
+                }
+            }
+        }
+
+        // Ejecutar transacciones
+        function submitTransaction() {
+            const assetSym = document.getElementById('form-asset').value;
+            const qty = parseFloat(document.getElementById('form-qty').value);
+            const price = parseFloat(document.getElementById('form-price').value);
+            const note = document.getElementById('form-note').value || "Manual ledger execution";
+            const statusBox = document.getElementById('status-box');
+
+            if (isNaN(qty) || qty <= 0 || isNaN(price) || price <= 0) {
+                showStatus("ERROR: Invalid numeric amounts.", false);
+                addLog("TRADE_REJECTED: QUANTITY OR PRICE PARSE FAIL", "error");
+                return;
+            }
+
+            const totalVal = qty * price;
+
+            if (txType === 'BUY') {
+                const usdAsset = assets.find(a => a.symbol === "USD");
+                if (!usdAsset || (usdAsset.holdings < totalVal && assetSym !== 'USD')) {
+                    showStatus(`ERROR: Insufficient USD funds. Requires $${totalVal.toFixed(2)}, current balance: $${usdAsset.holdings.toFixed(2)}`, false);
+                    addLog("LEDGER_REJECTED: INSUFFICIENT_LIQUIDITY", "error");
+                    return;
+                }
+
+                if (assetSym !== 'USD') {
+                    usdAsset.holdings -= totalVal;
+                }
+
+                let targetAsset = assets.find(a => a.symbol === assetSym);
+                if (targetAsset) {
+                    const newHoldings = targetAsset.holdings + qty;
+                    targetAsset.avgPurchasePrice = ((targetAsset.holdings * targetAsset.avgPurchasePrice) + totalVal) / newHoldings;
+                    targetAsset.holdings = newHoldings;
+                    targetAsset.currentPrice = price;
+                } else {
+                    assets.push({
+                        symbol: assetSym,
+                        name: `${assetSym} Asset`,
+                        type: ["BTC", "ETH"].includes(assetSym) ? "CRYPTO" : "STOCK",
+                        holdings: qty,
+                        avgPurchasePrice: price,
+                        currentPrice: price
+                    });
+                }
+                showStatus(`SUCCESS: Purchased ${qty} ${assetSym} at $${price.toFixed(2)}.`, true);
+                addLog(`LEDGER_COMMIT: BUY APPROVED -> ${qty} ${assetSym}`, "success");
+            } 
+            else if (txType === 'SELL') {
+                let targetAsset = assets.find(a => a.symbol === assetSym);
+                if (!targetAsset || targetAsset.holdings < qty) {
+                    showStatus(`ERROR: Insufficient ${assetSym} balance. Max: ${targetAsset ? targetAsset.holdings : 0}`, false);
+                    addLog("LEDGER_REJECTED: POSITIONS_INSUFFICIENT", "error");
+                    return;
+                }
+
+                targetAsset.holdings -= qty;
+                targetAsset.currentPrice = price;
+
+                if (assetSym !== 'USD') {
+                    const usdAsset = assets.find(a => a.symbol === "USD");
+                    usdAsset.holdings += totalVal;
+                }
+
+                showStatus(`SUCCESS: Sold ${qty} ${assetSym} at $${price.toFixed(2)}.`, true);
+                addLog(`LEDGER_COMMIT: SELL APPROVED -> ${qty} ${assetSym}`, "success");
+            }
+            else if (txType === 'INCOME') {
+                const usdAsset = assets.find(a => a.symbol === "USD");
+                usdAsset.holdings += qty;
+                showStatus(`SUCCESS: Cash deposit recorded (+$${qty.toFixed(2)}).`, true);
+                addLog(`LEDGER_COMMIT: INCOME RECORDED -> +$${qty}`, "success");
+            }
+            else if (txType === 'EXPENSE') {
+                const usdAsset = assets.find(a => a.symbol === "USD");
+                if (usdAsset.holdings < qty) {
+                    showStatus(`ERROR: Insufficient USD funds for expense.`, false);
+                    addLog("LEDGER_REJECTED: EXPENSE_BLOCKED", "error");
+                    return;
+                }
+                usdAsset.holdings -= qty;
+                showStatus(`SUCCESS: Withdrawal/Expense recorded (-$${qty.toFixed(2)}).`, true);
+                addLog(`LEDGER_COMMIT: EXPENSE RECORDED -> -$${qty}`, "success");
+            }
+
+            document.getElementById('form-qty').value = "";
+            document.getElementById('form-note').value = "";
+            
+            saveState();
+            updateUI();
+        }
+
+        function showStatus(msg, success) {
+            const box = document.getElementById('status-box');
+            box.className = `p-1.5 text-[8.5px] border ${success ? 'bg-emerald-950/80 border-emerald-500 text-emerald-400' : 'bg-red-950/80 border-red-500 text-red-400'}`;
+            box.innerText = msg;
+            box.classList.remove('hidden');
+            setTimeout(() => {
+                box.classList.add('hidden');
+            }, 4500);
+        }
+
+        function resetLedger() {
+            if (confirm("⚠️ PURGE entire history and reset holdings to demo defaults?")) {
+                localStorage.removeItem('terminal_assets');
+                assets = [
+                    { symbol: "USD", name: "USD Cash", type: "CASH", holdings: 5430.22, avgPurchasePrice: 1.0, currentPrice: 1.0 },
+                    { symbol: "BTC", name: "Bitcoin", type: "CRYPTO", holdings: 1.5, avgPurchasePrice: 65200.0, currentPrice: 68420.5 },
+                    { symbol: "ETH", name: "Ethereum", type: "CRYPTO", holdings: 8.5, avgPurchasePrice: 3120.0, currentPrice: 3450.12 },
+                    { symbol: "NVDA", name: "NVIDIA Corp", type: "STOCK", holdings: 120.0, avgPurchasePrice: 810.5, currentPrice: 892.45 },
+                    { symbol: "TSLA", name: "Tesla Inc", type: "STOCK", holdings: 50.0, avgPurchasePrice: 185.2, currentPrice: 174.15 }
+                ];
+                saveState();
+                updateUI();
+                addLog("SYSTEM_RESET: TRADING JOURNAL LEDGER WIPED SUCCESSFULLY", "success");
+            }
+        }
+
+        // Renderizado del UI global
+        function updateUI() {
+            let netWorth = 0;
+            let cashValue = 0;
+            let initialInvested = 0;
+
+            assets.forEach(a => {
+                const totalVal = a.holdings * a.currentPrice;
+                netWorth += totalVal;
+                if (a.symbol === "USD") {
+                    cashValue = totalVal;
+                } else {
+                    initialInvested += a.holdings * a.avgPurchasePrice;
+                }
+            });
+
+            const totalPL = netWorth - cashValue - initialInvested;
+            const plPercent = initialInvested > 0 ? (totalPL / initialInvested) * 100 : 0;
+
+            document.getElementById('header-net-worth').innerText = `$${netWorth.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('header-cash').innerText = `$${cashValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            
+            const plSign = totalPL >= 0 ? '+' : '';
+            const plColor = totalPL >= 0 ? '#00ff66' : '#ff3366';
+            const plTextEl = document.getElementById('header-pl');
+            const plPctEl = document.getElementById('header-pl-pct');
+
+            plTextEl.innerText = `${plSign}$${totalPL.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            plTextEl.style.color = plColor;
+            plPctEl.innerText = `${plSign}${plPercent.toFixed(2)}%`;
+            plPctEl.style.color = plColor;
+
+            const activeCandles = candlesMap[selectedSymbol];
+            if (activeCandles && activeCandles.length > 0) {
+                const last = activeCandles[activeCandles.length - 1];
+                const change = last.close - last.open;
+                const changePct = (change / last.open) * 100;
+                const colorClass = change >= 0 ? 'text-[#00ff66]' : 'text-[#ff3366]';
+                const sign = change >= 0 ? '+' : '';
+
+                document.getElementById('stat-open').innerText = Math.round(last.open).toLocaleString();
+                document.getElementById('stat-high').innerText = Math.round(last.high).toLocaleString();
+                document.getElementById('stat-low').innerText = Math.round(last.low).toLocaleString();
+                document.getElementById('stat-close').innerText = Math.round(last.close).toLocaleString();
+                document.getElementById('stat-close').className = `${colorClass} font-bold`;
+
+                const varEl = document.getElementById('stat-var');
+                varEl.innerText = `${sign}${changePct.toFixed(2)}%`;
+                varEl.className = `${colorClass} font-bold`;
+            }
+
+            // Actualizar tabla de inventario
+            const tbody = document.getElementById('inventory-tbody');
+            tbody.innerHTML = "";
+
+            assets.forEach(a => {
+                const totalCost = a.holdings * a.avgPurchasePrice;
+                const totalMarketVal = a.holdings * a.currentPrice;
+                const pl = totalMarketVal - totalCost;
+                const plPct = totalCost > 0 ? (pl / totalCost) * 100 : 0;
+
+                const isUSD = a.symbol === "USD";
+                const rowColor = a.symbol === selectedSymbol ? 'bg-[#0f172a] border-[#00fbfb]/30' : 'hover:bg-slate-950';
+                
+                let plCell = `<div class="text-slate-500 font-bold text-[8px]">CASH_BAL</div>`;
+                if (!isUSD) {
+                    const plSignStr = pl >= 0 ? '+' : '';
+                    const colorStyle = pl >= 0 ? 'text-[#00ff66]' : 'text-[#ff3366]';
+                    plCell = `
+                        <div class="${colorStyle} font-bold text-[9px]">${plSignStr}$${pl.toFixed(2)}</div>
+                        <div class="${colorStyle}/80 text-[7px] leading-none">${plSignStr}${plPct.toFixed(2)}%</div>
+                    `;
+                }
+
+                const tr = document.createElement('tr');
+                tr.className = `${rowColor} border-b border-slate-950 cursor-pointer transition`;
+                tr.onclick = () => { if (!isUSD) selectSymbol(a.symbol); };
+                tr.innerHTML = `
+                    <td class="p-1.5 pl-2 font-bold ${a.symbol === selectedSymbol ? 'text-[#00fbfb]' : 'text-white'}">${a.symbol}</td>
+                    <td class="p-1.5 text-slate-300 font-mono">${isUSD ? a.holdings.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : a.holdings.toLocaleString(undefined, {minimumFractionDigits: 4, maximumFractionDigits: 4})}</td>
+                    <td class="p-1.5 text-slate-500 font-mono">${isUSD ? '-' : '$' + a.avgPurchasePrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                    <td class="p-1.5 text-slate-500 font-mono">${isUSD ? '-' : '$' + a.currentPrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                    <td class="p-1.5 pr-2 text-right">${plCell}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // Redibujar gráficos
+            drawCandlestickChart('primary-chart', candlesMap[selectedSymbol], selectedSymbol, false);
+            
+            // Renderizar secundarios
+            const secondaries = symbols.filter(s => s !== selectedSymbol).slice(0, 2);
+            
+            document.getElementById('mini-1-title').innerText = secondaries[0];
+            document.getElementById('mini-1-price').innerText = `$${assets.find(a => a.symbol === secondaries[0]).currentPrice.toFixed(1)}`;
+            drawCandlestickChart('mini-chart-1', candlesMap[secondaries[0]], secondaries[0], true);
+
+            document.getElementById('mini-2-title').innerText = secondaries[1];
+            document.getElementById('mini-2-price').innerText = `$${assets.find(a => a.symbol === secondaries[1]).currentPrice.toFixed(1)}`;
+            drawCandlestickChart('mini-chart-2', candlesMap[secondaries[1]], secondaries[1], true);
+        }
+
+        // Loop de tiempo real del mercado
+        setInterval(() => {
+            symbols.forEach(simulateTick);
+            updateUI();
+            
+            if (Math.random() > 0.8) {
+                const logsOptions = [
+                    `CORE_FEED_TICK: [${selectedSymbol}/USD] PRICE_LOCK -> $${assets.find(a => a.symbol === selectedSymbol).currentPrice.toFixed(1)}`,
+                    "SIGNAL_MATRIX: VOLATILITY_SIGMA_14 -> LOCK_STABLE",
+                    "MEMORY_SWAP: GARBAGE_COLLECTOR ACTION DONE [PRE_FETCH]",
+                    "TELEMETRY_STREAM: CREDIT_RISK_RATIO -> SAFE ZONE",
+                    "LEDGER: REAL-TIME PORTFOLIO TOTALS MATHEMATICAL SYNC"
+                ];
+                addLog(logsOptions[Math.floor(Math.random() * logsOptions.length)]);
+            }
+        }, 1200);
+
+        // Inicialización
+        window.onload = () => {
+            addLog("SYSTEM_INIT: APPLET SIMULATION SUCCESSFUL", "success");
+            addLog("DB_STATUS: ROOM PERSISTENT DATABASE DISK ATTACHED", "success");
+            addLog("TELEMETRY: BROADCAST FEED PIPELINE OPERATIONAL", "info");
+            selectSymbol('BTC');
+            setTxType('BUY');
+        }
+
+        window.onresize = () => {
+            updateUI();
+        }
+    </script>
+</body>
+</html>
