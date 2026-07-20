@@ -1,0 +1,27 @@
+# Environment variables / Secrets
+.env
+.env.*
+.env.local
+.env.production
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Data files (extractos bancarios, CSVs con datos personales)
+*.csv
+extracto_*.txt
+
+# Logs
+*.log
+
+# Node (si se agrega en el futuro)
+node_modules/
