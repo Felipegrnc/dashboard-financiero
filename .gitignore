@@ -25,3 +25,5 @@ extracto_*.txt
 
 # Node (si se agrega en el futuro)
 node_modules/
+cargue_masivo_base.html
+financial_base.html
