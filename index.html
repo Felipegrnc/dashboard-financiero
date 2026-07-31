@@ -48,25 +48,21 @@
         /* Force date inputs to be compact */
         input[type="date"].edit-cell-date {
             width: 100%;
-            max-width: 67px;
             font-size: 8px;
             padding: 2px 2px;
             -webkit-appearance: none;
             appearance: none;
+            white-space: nowrap;
         }
         input[type="date"].edit-cell-date::-webkit-calendar-picker-indicator {
-            width: 8px;
-            height: 8px;
-            padding: 0;
-            margin: 0;
-            opacity: 0.5;
+            display: none;
         }
         .row-even { background: #000000; }
         .row-odd { background: #050810; }
-        .row-type-gasto { border-left: 8px solid #ff3366; }
-        .row-type-ingreso { border-left: 8px solid #00ff66; }
-        .row-type-ahorro { border-left: 8px solid #2196f3; }
-        .row-type-consignacion { border-left: 8px solid #00fbfb; }
+        .row-type-gasto { border-left: 5px solid #ff3366; }
+        .row-type-ingreso { border-left: 5px solid #00ff66; }
+        .row-type-ahorro { border-left: 5px solid #2196f3; }
+        .row-type-consignacion { border-left: 5px solid #00fbfb; }
         .editor-table th { position: sticky; top: 0; z-index: 10; background: #020617; }
         .chart-legend {
             position: absolute; top: 4px; left: 8px; z-index: 20;
@@ -306,11 +302,11 @@
                     <table class="w-full text-[8px] text-left">
                         <thead class="bg-[#020617] text-slate-500 uppercase border-b border-slate-900 sticky top-0 z-10">
                             <tr class="font-bold">
-                                <th class="p-1.5 pl-3" style="min-width:72px">DATE</th>
+                                <th class="p-1.5 pl-3" style="min-width:90px">DATE</th>
                                 <th class="p-1.5">TYPE</th>
                                 <th class="p-1.5" style="max-width:90px">CONCEPT</th>
                                 <th class="p-1.5">RECEIVER</th>
-                                <th class="p-0.5 text-right" style="width:72px;text-align: center;">AMOUNT</th>
+                                <th class="p-0.5" style="width:72px; text-align:center;">AMOUNT</th>
                             </tr>
                         </thead>
                         <tbody id="transactions-tbody" class="divide-y divide-slate-950"></tbody>
@@ -420,11 +416,11 @@
                     <thead>
                         <tr class="text-slate-500 uppercase font-bold border-b border-slate-800">
                             <th class="p-0.5 text-center w-[22px]" id="th-select" style="display:none">✓</th>
-                            <th class="p-0.5" style="width:67px">DATE</th>
+                            <th class="p-0.5" style="width:72px">DATE</th>
                             <th class="p-0.5" style="width:58px">TYPE</th>
                             <th class="p-0.5" style="width:120px">CONCEPT</th>
                             <th class="p-0.5" style="width:120px">SUBCAT</th>
-                            <th class="p-0.5 text-right" style="width:72px">AMOUNT</th>
+                            <th class="p-0.5 text-center" style="width:72px">AMOUNT</th>
                             <th class="p-0.5" style="width:50px">METHOD</th>
                         </tr>
                     </thead>
