@@ -63,10 +63,10 @@
         }
         .row-even { background: #000000; }
         .row-odd { background: #050810; }
-        .row-type-gasto { border-left: 4px solid #ff3366; }
-        .row-type-ingreso { border-left: 4px solid #00ff66; }
-        .row-type-ahorro { border-left: 4px solid #2196f3; }
-        .row-type-consignacion { border-left: 4px solid #00fbfb; }
+        .row-type-gasto { border-left: 8px solid #ff3366; }
+        .row-type-ingreso { border-left: 8px solid #00ff66; }
+        .row-type-ahorro { border-left: 8px solid #2196f3; }
+        .row-type-consignacion { border-left: 8px solid #00fbfb; }
         .editor-table th { position: sticky; top: 0; z-index: 10; background: #020617; }
         .chart-legend {
             position: absolute; top: 4px; left: 8px; z-index: 20;
@@ -310,7 +310,7 @@
                                 <th class="p-1.5">TYPE</th>
                                 <th class="p-1.5" style="max-width:90px">CONCEPT</th>
                                 <th class="p-1.5">RECEIVER</th>
-                                <th class="p-1.5 pr-2 text-center">AMOUNT</th>
+                                <th class="p-0.5 text-right" style="width:72px;text-align: center;">AMOUNT</th>
                             </tr>
                         </thead>
                         <tbody id="transactions-tbody" class="divide-y divide-slate-950"></tbody>
