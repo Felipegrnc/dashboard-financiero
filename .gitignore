@@ -27,3 +27,9 @@ extracto_*.txt
 node_modules/
 cargue_masivo_base.html
 financial_base.html
+
+# DB cleanup/rollback docs
+db_cleanup_*.md
+
+
+TRANSACTION_DICTIONARY.md

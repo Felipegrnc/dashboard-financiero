@@ -63,10 +63,10 @@
         }
         .row-even { background: #000000; }
         .row-odd { background: #050810; }
-        .row-type-gasto { border-left: 2px solid #ff3366; }
-        .row-type-ingreso { border-left: 2px solid #00ff66; }
-        .row-type-ahorro { border-left: 2px solid #2196f3; }
-        .row-type-consignacion { border-left: 2px solid #00fbfb; }
+        .row-type-gasto { border-left: 4px solid #ff3366; }
+        .row-type-ingreso { border-left: 4px solid #00ff66; }
+        .row-type-ahorro { border-left: 4px solid #2196f3; }
+        .row-type-consignacion { border-left: 4px solid #00fbfb; }
         .editor-table th { position: sticky; top: 0; z-index: 10; background: #020617; }
         .chart-legend {
             position: absolute; top: 4px; left: 8px; z-index: 20;
@@ -306,11 +306,11 @@
                     <table class="w-full text-[8px] text-left">
                         <thead class="bg-[#020617] text-slate-500 uppercase border-b border-slate-900 sticky top-0 z-10">
                             <tr class="font-bold">
-                                <th class="p-1.5 pl-2">DATE</th>
+                                <th class="p-1.5 pl-3" style="min-width:72px">DATE</th>
                                 <th class="p-1.5">TYPE</th>
-                                <th class="p-1.5">CONCEPT</th>
+                                <th class="p-1.5" style="max-width:90px">CONCEPT</th>
                                 <th class="p-1.5">RECEIVER</th>
-                                <th class="p-1.5 pr-2 text-right">AMOUNT</th>
+                                <th class="p-1.5 pr-2 text-center">AMOUNT</th>
                             </tr>
                         </thead>
                         <tbody id="transactions-tbody" class="divide-y divide-slate-950"></tbody>
@@ -458,10 +458,11 @@
                     <div>
                         <label class="block text-[7px] text-slate-500 mb-0.5 font-bold uppercase">Type</label>
                         <select id="modal-type" class="edit-cell w-full" onchange="onModalTypeChange()">
-                            <option value="gasto">expense</option>
-                            <option value="ingreso">income</option>
-                            <option value="ahorro">savings</option>
-                            <option value="consignación">payment</option>
+                            <option value="gasto">Gasto</option>
+                            <option value="ingreso">Ingreso</option>
+                            <option value="ahorro">Ahorro</option>
+                            <option value="consignación">Pago Tarjeta</option>
+                            <option value="rendimiento_ahorro">Rendimiento Ahorro</option>
                         </select>
                     </div>
                 </div>
@@ -494,8 +495,8 @@
                     <div class="col-span-2">
                         <label class="block text-[7px] text-slate-500 mb-0.5 font-bold uppercase">Method</label>
                         <select id="modal-method" class="edit-cell w-full">
-                            <option value="débito">debit</option>
-                            <option value="crédito">credit</option>
+                            <option value="débito">Débito</option>
+                            <option value="crédito">Crédito</option>
                         </select>
                     </div>
                 </div>
@@ -526,6 +527,58 @@
     const SUPABASE_URL = 'https://sedenjlmyvhjaozbjzsd.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNlZGVuamxteXZoamFvemJqenNkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MDQzNTM3NSwiZXhwIjoyMDY2MDExMzc1fQ.VILob1uo_ARnucEyAe3iHDbQfpoRK11TBmx6jHJuxwU';
     const INITIAL_BALANCE = 4298017.67;
+
+    // ================================================================
+    // TRANSACTION DICTIONARY — Hierarchical options per type
+    // ================================================================
+    const TX_DICTIONARY = {
+        gasto: {
+            concepts: {
+                'Alimentación': { subcategories: ['Mercado', 'Restaurante', 'Domicilio', 'Cafetería', 'Panadería'], methods: ['débito', 'crédito'] },
+                'Vivienda': { subcategories: ['Arriendo', 'Servicios Públicos', 'Internet', 'Gas', 'Agua', 'Energía'], methods: ['débito', 'crédito'] },
+                'Transporte': { subcategories: ['Gasolina', 'Peajes', 'Transporte Público', 'Parqueadero', 'Mantenimiento Vehículo'], methods: ['débito', 'crédito'] },
+                'Salud': { subcategories: ['Medicamentos', 'Consulta Médica', 'Odontología', 'Laboratorio'], methods: ['débito', 'crédito'] },
+                'Mascotas': { subcategories: ['Veterinaria', 'Alimentación Mascota', 'Peluquería', 'Accesorios'], methods: ['débito', 'crédito'] },
+                'Educación': { subcategories: ['Formación', 'Útiles', 'Libros', 'Cursos Online'], methods: ['débito', 'crédito'] },
+                'Estilo de Vida': { subcategories: ['Ropa y Calzado', 'Higiene Personal', 'Entretenimiento', 'Tecnología', 'Hogar y Decoración', 'Viajes', 'Suscripciones'], methods: ['débito', 'crédito'] },
+                'Familia': { subcategories: ['Apoyo Familiar', 'Obsequios', 'Préstamo Personal', 'Detalles'], methods: ['débito', 'crédito'] },
+                'Servicios Financieros': { subcategories: ['Cuota de Manejo', 'Intereses', 'Seguros', 'Inmobiliaria'], methods: ['crédito'] },
+                'Soporte Fijo': { subcategories: ['Arriendo Compartido', 'Préstamo Fijo', 'Cuota Fija'], methods: ['débito', 'crédito'] },
+                'Recreación': { subcategories: ['Club', 'Deporte', 'Cine', 'Eventos'], methods: ['débito', 'crédito'] },
+                'Compras': { subcategories: ['Online', 'Catálogo', 'Papelería', 'Supermercado', 'Tienda Física'], methods: ['débito', 'crédito'] },
+                'Retiro': { subcategories: ['Retiro ATM'], methods: ['débito'] },
+                'Ajuste': { subcategories: ['Ajuste de Cuentas'], methods: ['débito'] },
+                'No Identificado': { subcategories: ['No Identificado'], methods: ['débito', 'crédito'] },
+            }
+        },
+        ingreso: {
+            concepts: {
+                'Nómina': { subcategories: ['Salario', 'Prima', 'Bonificación', 'Liquidación'], methods: ['débito'] },
+                'Rendimientos': { subcategories: ['Rendimientos Cuenta', 'Rendimientos Ahorro'], methods: ['débito'] },
+                'Reembolsos': { subcategories: ['Devolución', 'Préstamo Devuelto', 'Reembolso Seguro'], methods: ['débito'] },
+                'Otros Ingresos': { subcategories: ['Venta', 'Freelance', 'Regalo'], methods: ['débito'] },
+                'Ajuste': { subcategories: ['Ajuste de Cuentas'], methods: ['débito'] },
+                'No Identificado': { subcategories: ['No Identificado'], methods: ['débito'] },
+            }
+        },
+        ahorro: {
+            concepts: {
+                'Adebol': { subcategories: ['Adebol'], methods: ['débito'] },
+                'Cuenta Ahorro': { subcategories: ['Ahorro Programado', 'Meta de Ahorro'], methods: ['débito'] },
+                'Ajuste': { subcategories: ['Ajuste de Cuentas'], methods: ['débito'] },
+            }
+        },
+        'consignación': {
+            concepts: {
+                'Pago Tarjeta': { subcategories: ['Pago Total', 'Pago Mínimo', 'Abono Parcial'], methods: [] },
+            }
+        },
+        rendimiento_ahorro: {
+            concepts: {
+                'Adebol': { subcategories: ['Rendimientos Adebol'], methods: [] },
+            }
+        }
+    };
 
     let allTransactions = [];
     let currentInterval = '3m';
@@ -821,12 +874,13 @@
 
     // RUNWAY PROJECTION DATA
     function processRunwayData() {
-        const gastos = allTransactions.filter(t => t.type === 'gasto');
+        const gastos = allTransactions.filter(t => t.type === 'gasto' && t.concept !== 'Abono a Tarjeta');
         if (gastos.length === 0) return { days: 0, dailyBurn: 0, zeroDate: null, actual: [], projection: [] };
 
         // Calculate current balance
         let totalIngresos = 0, totalGastos = 0, totalAhorros = 0;
         allTransactions.forEach(t => {
+            if (t.type === 'consignación' || t.concept === 'Abono a Tarjeta') return;
             const a = parseFloat(t.amount) || 0;
             if (t.type === 'ingreso') totalIngresos += a;
             else if (t.type === 'gasto') totalGastos += a;
@@ -903,7 +957,7 @@
 
     // HEATMAP DATA: gastos por día de semana × semana
     function processHeatmapData() {
-        const gastos = allTransactions.filter(t => t.type === 'gasto' && t.date);
+        const gastos = allTransactions.filter(t => t.type === 'gasto' && t.date && t.concept !== 'Abono a Tarjeta');
         const weekMap = {}; // 'YYYY-WW' => { 0: amount, 1: amount, ... 6: amount }
         
         gastos.forEach(t => {
@@ -934,7 +988,7 @@
             if (!t.date) return;
             const month = t.date.substring(0, 7); // YYYY-MM
             const amount = parseFloat(t.amount) || 0;
-            if (t.type === 'gasto') monthlyGastos[month] = (monthlyGastos[month] || 0) + amount;
+            if (t.type === 'gasto' && t.concept !== 'Abono a Tarjeta') monthlyGastos[month] = (monthlyGastos[month] || 0) + amount;
             else if (t.type === 'ingreso' && t.concept && t.concept.toLowerCase().includes('nómina')) {
                 monthlyIngresos[month] = (monthlyIngresos[month] || 0) + amount;
             }
@@ -951,7 +1005,7 @@
     function processDonutData() {
         const catMap = {};
         allTransactions.forEach(t => {
-            if (t.type !== 'gasto') return;
+            if (t.type !== 'gasto' || t.concept === 'Abono a Tarjeta') return;
             const key = t.subcategory || t.concept || 'Uncategorized';
             catMap[key] = (catMap[key] || 0) + (parseFloat(t.amount) || 0);
         });
@@ -1299,7 +1353,7 @@
         if (yearLabel) yearLabel.textContent = currentYear;
 
         // Build a map of all days in the year with spending data
-        const gastos = allTransactions.filter(t => t.type === 'gasto' && t.date);
+        const gastos = allTransactions.filter(t => t.type === 'gasto' && t.date && t.concept !== 'Abono a Tarjeta');
         const dayMap = {}; // 'YYYY-MM-DD' => amount
         gastos.forEach(t => {
             const dateStr = t.date.substring(0, 10);
@@ -1541,9 +1595,9 @@
             const sign = isIngreso ? '+' : '-';
             const amount = parseFloat(t.amount) || 0;
             tr.innerHTML = `
-                <td class="p-1.5 pl-2 text-slate-400">${t.date || '---'}</td>
+                <td class="p-1.5 pl-3 text-slate-400 whitespace-nowrap">${t.date || '---'}</td>
                 <td class="p-1.5 text-[7px] ${color} font-bold uppercase">${(t.type || '---').substring(0,10)}</td>
-                <td class="p-1.5 text-white">${(t.concept || '---').substring(0, 14)}</td>
+                <td class="p-1.5 text-white" style="max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(t.concept || '---').substring(0, 12)}</td>
                 <td class="p-1.5 text-slate-500">${(t.receiver || '---').substring(0, 12)}</td>
                 <td class="p-1.5 pr-2 text-right ${color} font-bold">${sign}$${amount.toLocaleString()}</td>
             `;
@@ -1556,7 +1610,7 @@
         container.innerHTML = '';
         const conceptMap = {};
         allTransactions.forEach(t => {
-            if (t.type !== 'gasto') return;
+            if (t.type !== 'gasto' || t.concept === 'Abono a Tarjeta') return;
             const key = t.concept || 'No Concept';
             conceptMap[key] = (conceptMap[key] || 0) + (parseFloat(t.amount) || 0);
         });
@@ -1575,6 +1629,7 @@
     function updateMetrics() {
         let totalGastos = 0, totalIngresos = 0, totalAhorros = 0;
         allTransactions.forEach(t => {
+            if (t.type === 'consignación' || t.concept === 'Abono a Tarjeta') return;
             const a = parseFloat(t.amount) || 0;
             if (t.type === 'gasto') totalGastos += a;
             else if (t.type === 'ingreso') totalIngresos += a;
@@ -1625,7 +1680,7 @@
         
         let thisWeekSpend = 0, lastWeekSpend = 0;
         allTransactions.forEach(t => {
-            if (t.type !== 'gasto' || !t.date) return;
+            if (t.type !== 'gasto' || !t.date || t.concept === 'Abono a Tarjeta') return;
             const d = new Date(t.date);
             const amount = parseFloat(t.amount) || 0;
             if (d >= thisWeekStart && d <= today) thisWeekSpend += amount;
@@ -1647,7 +1702,7 @@
         // Top Category Alert
         const catMap = {};
         allTransactions.forEach(t => {
-            if (t.type !== 'gasto') return;
+            if (t.type !== 'gasto' || t.concept === 'Abono a Tarjeta') return;
             const key = t.subcategory || t.concept || 'N/A';
             catMap[key] = (catMap[key] || 0) + (parseFloat(t.amount) || 0);
         });
@@ -1907,22 +1962,35 @@
         document.getElementById('pending-count').textContent = pendingChanges.size;
     }
 
-    function buildConceptOptions(currentVal) {
-        const concepts = getUniqueValues('concept');
+    function buildConceptOptions(currentVal, type) {
+        const dict = TX_DICTIONARY[type];
         let opts = '<option value="">--</option>';
-        concepts.forEach(c => {
-            opts += `<option value="${c}" ${c === currentVal ? 'selected' : ''}>${c.length > 16 ? c.substring(0,16)+'…' : c}</option>`;
-        });
+        if (dict && dict.concepts) {
+            Object.keys(dict.concepts).forEach(c => {
+                opts += `<option value="${c}" ${c === currentVal ? 'selected' : ''}>${c.length > 16 ? c.substring(0,16)+'…' : c}</option>`;
+            });
+        }
+        // If current value is not in dictionary, add it as option
+        if (currentVal && dict && dict.concepts && !dict.concepts[currentVal]) {
+            opts += `<option value="${currentVal}" selected>${currentVal.length > 16 ? currentVal.substring(0,16)+'…' : currentVal}</option>`;
+        }
         opts += `<option value="__custom__">✎ otro</option>`;
         return opts;
     }
 
-    function buildSubcategoryOptions(currentVal) {
-        const subcats = getUniqueValues('subcategory');
+    function buildSubcategoryOptions(currentVal, type, concept) {
+        const dict = TX_DICTIONARY[type];
         let opts = '<option value="">--</option>';
-        subcats.forEach(s => {
-            opts += `<option value="${s}" ${s === currentVal ? 'selected' : ''}>${s.length > 16 ? s.substring(0,16)+'…' : s}</option>`;
-        });
+        if (dict && dict.concepts && dict.concepts[concept]) {
+            dict.concepts[concept].subcategories.forEach(s => {
+                opts += `<option value="${s}" ${s === currentVal ? 'selected' : ''}>${s.length > 16 ? s.substring(0,16)+'…' : s}</option>`;
+            });
+        }
+        // If current value is not in dictionary subcategories, add it
+        const validSubs = (dict && dict.concepts && dict.concepts[concept]) ? dict.concepts[concept].subcategories : [];
+        if (currentVal && !validSubs.includes(currentVal)) {
+            opts += `<option value="${currentVal}" selected>${currentVal.length > 16 ? currentVal.substring(0,16)+'…' : currentVal}</option>`;
+        }
         opts += `<option value="__custom__">✎ otro</option>`;
         return opts;
     }
@@ -1979,12 +2047,13 @@
                     <option value="ingreso" ${t.type==='ingreso'?'selected':''}>ingre</option>
                     <option value="ahorro" ${t.type==='ahorro'?'selected':''}>ahorro</option>
                     <option value="consignación" ${t.type==='consignación'?'selected':''}>pago</option>
+                    <option value="rendimiento_ahorro" ${t.type==='rendimiento_ahorro'?'selected':''}>rend</option>
                 </select></td>
                 <td class="p-0.5"><select class="edit-cell" style="font-size:9px;padding:2px 2px;" data-id="${t.id}" data-field="concept" onchange="onEditorSelectChange(this,'concept')">
-                    ${buildConceptOptions(t.concept)}
+                    ${buildConceptOptions(t.concept, t.type)}
                 </select></td>
                 <td class="p-0.5"><select class="edit-cell" style="font-size:9px;padding:2px 2px;" data-id="${t.id}" data-field="subcategory" onchange="onEditorSelectChange(this,'subcategory')">
-                    ${buildSubcategoryOptions(t.subcategory)}
+                    ${buildSubcategoryOptions(t.subcategory, t.type, t.concept)}
                 </select></td>
                 <td class="p-0.5 text-right"><input type="text" inputmode="decimal" class="edit-cell text-right font-bold ${amountColor}" style="font-size:9px;padding:2px 3px;" value="${amountFormatted}" data-id="${t.id}" data-field="amount" data-raw="${t.amount || ''}" onchange="onAmountCellChange(this)" onfocus="onAmountFocus(this)" onblur="onAmountBlur(this)"></td>
                 <td class="p-0.5"><select class="edit-cell" style="font-size:9px;padding:2px 2px;" data-id="${t.id}" data-field="payment_method" onchange="markChanged(this)">
@@ -2081,40 +2150,72 @@
         document.getElementById('modal-subcategory').classList.add('hidden');
         document.getElementById('modal-amount').value = '';
         document.getElementById('modal-method').value = 'débito';
+        document.getElementById('modal-method').disabled = false;
         document.getElementById('modal-description').value = '';
         document.getElementById('modal-status').classList.add('hidden');
 
-        // Populate concept dropdown
-        const conceptSelect = document.getElementById('modal-concept-select');
-        const concepts = getUniqueValues('concept');
-        conceptSelect.innerHTML = '<option value="">-- select --</option>';
-        concepts.forEach(c => {
-            const opt = document.createElement('option');
-            opt.value = c;
-            opt.textContent = c;
-            conceptSelect.appendChild(opt);
-        });
-        conceptSelect.innerHTML += '<option value="__custom__">✎ Other (type custom)...</option>';
-
-        // Populate subcategory dropdown
-        const subcatSelect = document.getElementById('modal-subcategory-select');
-        const subcats = getUniqueValues('subcategory');
-        subcatSelect.innerHTML = '<option value="">-- select --</option>';
-        subcats.forEach(s => {
-            const opt = document.createElement('option');
-            opt.value = s;
-            opt.textContent = s;
-            subcatSelect.appendChild(opt);
-        });
-        subcatSelect.innerHTML += '<option value="__custom__">✎ Other (type custom)...</option>';
+        // Populate based on dictionary
+        populateModalConcepts('gasto');
+        populateModalSubcategories('gasto', '');
 
         document.getElementById('modal-overlay').classList.remove('hidden');
         setTimeout(() => document.getElementById('modal-amount').focus(), 100);
     }
 
+    function populateModalConcepts(type) {
+        const conceptSelect = document.getElementById('modal-concept-select');
+        const dict = TX_DICTIONARY[type];
+        conceptSelect.innerHTML = '<option value="">-- seleccionar --</option>';
+        if (dict && dict.concepts) {
+            Object.keys(dict.concepts).forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c;
+                opt.textContent = c;
+                conceptSelect.appendChild(opt);
+            });
+        }
+        conceptSelect.innerHTML += '<option value="__custom__">Otro...</option>';
+        // Reset subcategory
+        populateModalSubcategories(type, '');
+    }
+
+    function populateModalSubcategories(type, concept) {
+        const subcatSelect = document.getElementById('modal-subcategory-select');
+        const dict = TX_DICTIONARY[type];
+        subcatSelect.innerHTML = '<option value="">-- seleccionar --</option>';
+        if (dict && dict.concepts && dict.concepts[concept]) {
+            dict.concepts[concept].subcategories.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s;
+                opt.textContent = s;
+                subcatSelect.appendChild(opt);
+            });
+        }
+        subcatSelect.innerHTML += '<option value="__custom__">Otro...</option>';
+        document.getElementById('modal-subcategory').classList.add('hidden');
+        document.getElementById('modal-subcategory').value = '';
+    }
+
+    function updateModalMethodOptions(type, concept) {
+        const methodSelect = document.getElementById('modal-method');
+        const dict = TX_DICTIONARY[type];
+        if (type === 'consignación' || type === 'rendimiento_ahorro') {
+            methodSelect.value = '';
+            methodSelect.disabled = true;
+            return;
+        }
+        methodSelect.disabled = false;
+        // If concept has specific methods, default to first one
+        if (dict && dict.concepts && dict.concepts[concept] && dict.concepts[concept].methods.length > 0) {
+            const methods = dict.concepts[concept].methods;
+            methodSelect.value = methods[0];
+        }
+    }
+
     function onModalConceptSelect() {
         const sel = document.getElementById('modal-concept-select');
         const input = document.getElementById('modal-concept');
+        const type = document.getElementById('modal-type').value;
         if (sel.value === '__custom__') {
             input.classList.remove('hidden');
             input.focus();
@@ -2122,6 +2223,10 @@
             input.classList.add('hidden');
             input.value = sel.value;
         }
+        // Update subcategories based on selected concept
+        populateModalSubcategories(type, sel.value === '__custom__' ? '' : sel.value);
+        // Update method options
+        updateModalMethodOptions(type, sel.value === '__custom__' ? '' : sel.value);
     }
 
     function onModalSubcategorySelect() {
@@ -2148,13 +2253,10 @@
 
     function onModalTypeChange() {
         const type = document.getElementById('modal-type').value;
-        const methodSelect = document.getElementById('modal-method');
-        if (type === 'consignación') {
-            methodSelect.value = '';
-            methodSelect.disabled = true;
-        } else {
-            methodSelect.disabled = false;
-        }
+        // Repopulate concepts for new type
+        populateModalConcepts(type);
+        // Update method
+        updateModalMethodOptions(type, '');
     }
 
     async function submitNewRowModal() {
